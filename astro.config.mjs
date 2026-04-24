@@ -6,11 +6,9 @@ import cloudflare from "@astrojs/cloudflare";
 export default defineConfig({
   site: "https://zkmcu.dev",
   output: "server",
-  adapter: cloudflare(),
-
-  image: {
-    service: { entrypoint: "astro/assets/services/noop" },
-  },
+  adapter: cloudflare({
+    imageService: "passthrough", // Dit lost de ASSETS fout op
+  }),
 
   integrations: [
     starlight({
