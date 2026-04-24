@@ -2,5 +2,3 @@ name = "zkmcu-web"
 pages_build_output_dir = "./dist"
 compatibility_date = "2024-09-23"
 compatibility_flags = [ "nodejs_compat" ]
-binding = "LOCAL_ASSETS" # In plaats van ASSETS
-service = "zkmcu-web"
