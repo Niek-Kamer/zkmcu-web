@@ -3,16 +3,20 @@ import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 
-// https://astro.build/config
 export default defineConfig({
   site: "https://zkmcu.dev",
   output: "server",
-  adapter: cloudflare(), // No options needed here in the latest version
+  adapter: cloudflare(),
+
+  image: {
+    service: { entrypoint: "astro/assets/services/noop" },
+  },
+
   integrations: [
     starlight({
       title: "zkmcu",
       description:
-        "no_std Rust family of SNARK and STARK verifiers for ARM Cortex-M and RISC-V microcontrollers. BN254, BLS12-381, and winterfell STARK, all under 128 KB SRAM.",
+        "no_std Rust family of SNARK and STARK verifiers for ARM Cortex-M and RISC-V microcontrollers.",
       favicon: "/favicon.ico",
       head: [
         {
@@ -99,13 +103,6 @@ export default defineConfig({
   vite: {
     ssr: {
       external: ["node:path", "node:fs", "node:url"],
-      noExternal: ["@expressive-code/core", "postcss"],
-    },
-    resolve: {
-      alias: {
-        // This ensures 'path' resolves to 'node:path'
-        path: "node:path",
-      },
     },
   },
 });
