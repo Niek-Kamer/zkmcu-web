@@ -96,4 +96,16 @@ export default defineConfig({
       disable404Route: true,
     }),
   ],
+  vite: {
+    ssr: {
+      external: ["node:path", "node:fs", "node:url"],
+      noExternal: ["@expressive-code/core", "postcss"],
+    },
+    resolve: {
+      alias: {
+        // This ensures 'path' resolves to 'node:path'
+        path: "node:path",
+      },
+    },
+  },
 });
