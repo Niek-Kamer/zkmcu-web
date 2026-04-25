@@ -19,7 +19,6 @@
 		"check": "biome check . && eslint . && astro check"
 	},
 	"dependencies": {
-		"@astrojs/cloudflare": "^13.2.1",
 		"@astrojs/starlight": "^0.38.3",
 		"@fontsource-variable/inter": "^5.2.8",
 		"@fontsource/archivo-black": "^5.2.8",
