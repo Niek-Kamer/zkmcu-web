@@ -1,9 +1,14 @@
 // @ts-check
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import cloudflare from "@astrojs/cloudflare";
 
 export default defineConfig({
   site: "https://zkmcu.dev",
+  adapter: cloudflare({
+    // En we houden deze erin voor de zekerheid tegen die ASSETS fout
+    imageService: "passthrough",
+  }),
 
   integrations: [
     starlight({
