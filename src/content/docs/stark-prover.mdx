@@ -1,0 +1,125 @@
+---
+title: STARK prover on a microcontroller
+description: First on-device STARK proving on RP2350. Phase 4 shows feasibility at 134 ms (Goldilocks, ~32-bit security). Phase 5 reaches production security at 148 ms (BabyBear + Quartic, ~95-bit) with only +10 % overhead and a smaller heap.
+---
+
+import { Aside, Badge, CardGrid, Card } from '@astrojs/starlight/components';
+import { usAt } from '../../lib/benchmarks-index';
+import { fmtMs } from '../../lib/format';
+
+<div class="hero-badges">
+  <Badge text="winterfell 0.13 (forked)" variant="note" />
+  <Badge text="on-device prove + self-verify" variant="note" />
+  <Badge text={`${fmtMs(usAt('stark_m33_prove_bb'))} ms at 95-bit security`} variant="success" />
+  <Badge text="N=256 SRAM ceiling confirmed" variant="caution" />
+  <Badge text="Blake3 is the ISA gap floor" variant="tip" />
+</div>
+
+Yeah so phases 1-3 were all about verification. Take a proof someone else generated, verify it fits. Phase 4 asks a different question: can the RP2350 generate the proof too? I figured it probably couldn't at production security and I was basically wrong.
+
+**{fmtMs(usAt('stark_m33_prove_bb'))} ms to prove on Cortex-M33 at 95-bit conjectured security.** {fmtMs(usAt('stark_rv32_prove_bb'))} ms on Hazard3 RV32. That's +10 % over the 32-bit-security baseline for three times the security bits. And the heap actually shrinks because BabyBear elements are 4 bytes not 8. Not what I expected going in.
+
+## Phase 4: the feasibility run
+
+Phase 4 is deliberately weak on security. Goldilocks with no extension gives ~32-bit conjectured security, wich is not production-grade, but it answers the "does it even fit" question first. Then Phase 5 tightens it.
+
+| | Cortex-M33 | Hazard3 RV32 |
+|-|---:|---:|
+| Prove time (N=256, median) | **{fmtMs(usAt('stark_m33_prove_p4'))} ms** | **{fmtMs(usAt('stark_rv32_prove_p4'))} ms** |
+| Verify time (self-check) | {fmtMs(usAt('stark_m33_verify_p4'))} ms | {fmtMs(usAt('stark_rv32_verify_p4'))} ms |
+| Heap peak | 299 KB | 299 KB |
+| Proof size | 6 668 B | 6 668 B |
+| Security (conjectured) | ~32 bit | ~32 bit |
+| ISA gap (prove) | — | 1.55× |
+
+Each firmware proves and then immediately self-verifies on the same device. If verify returns anything other than `ok`, it halts. So the proof sizes and claim correctness are checked on actual hardware, not assumed from the host prover.
+
+Heap peak of 299 KB means running with a 384 KB arena. The remaining ~128 KB headroom covers `.bss`, stack, and USB. N=512 was tried immediately after. It OOM'd before the first prove call returned.
+
+<Aside type="note" title="Why N=256 is the ceiling">
+N=512 at blowup=4 needs ~600 KB heap for the LDE matrix and FRI oracle data. The RP2350 has 512 KB total SRAM. Even if you stripped everything else out, that's just not enough. N=256 is the practical limit on this chip at these parameters, regardless of wich field you pick.
+</Aside>
+
+## Phase 5: BabyBear + Quartic, production security
+
+Switches base field and extension: Goldilocks 64-bit → BabyBear 31-bit, `FieldExtension::None` → `FieldExtension::Quartic`. Conjectured security goes from ~32 bits to ~95 bits.
+
+| | Phase 4 (Goldilocks+None) | Phase 5 (BabyBear+Quartic) | Delta |
+|-|---:|---:|---:|
+| Security (conjectured) | ~32 bit | **~95 bit** | +63 bit |
+| Prove time (M33) | {fmtMs(usAt('stark_m33_prove_p4'))} ms | **{fmtMs(usAt('stark_m33_prove_bb'))} ms** | +10 % |
+| Verify time (M33) | {fmtMs(usAt('stark_m33_verify_p4'))} ms | {fmtMs(usAt('stark_m33_verify_bb'))} ms | +49 % |
+| Heap peak | 299 KB | **248 KB** | **-17.5 %** |
+| Proof size | 6 668 B | 6 872 B | +3 % |
+
+**+10 % prove overhead for three times the security bits.** That is a really good tradeoff tbh. The heap shrinking is a nice bonus — BabyBear elements are 4 bytes vs 8 bytes for Goldilocks, so the LDE matrix is half the size in memory.
+
+Verify costs more (+49 %) because the Quartic extension forces a bigger composition polynomial (4 columns instead of 1). But 29 ms is still fine.
+
+<Aside type="tip" title="Why the prover tells a different BabyBear story than the verifier">
+Phase 3.3 showed BabyBear × Quartic was +66 % slower than Goldilocks × Quadratic for the verifier. The prover shows only +10 %. Different bottleneck. The verifier is almost purely Blake3 hash work, field arithmetic is a tiny fraction of it. The prover spends a lot of time on the LDE and constraint evaluation, wich is field-heavy. BabyBear's smaller elements cut LDE memory bandwidth in half and reduce the NTT field multiply count. That's why the prover benefits and the verifier barely noticed.
+</Aside>
+
+## The cross-ISA gap hypothesis that didn't hold
+
+Going into Phase 5 the hypothesis was: the M33-vs-RV32 gap collapses from 1.55× to around 1.07×. Reasoning: BabyBear multiplication is a single 32×32→64 `MUL` on both ISAs. No UMAAL advantage for M33. Symmetric operation, should be symmetric speed.
+
+Didn't happen.
+
+| | Cortex-M33 | Hazard3 RV32 | Ratio (RV32/M33) |
+|-|---:|---:|---:|
+| Prove (Phase 4, Goldilocks) | {fmtMs(usAt('stark_m33_prove_p4'))} ms | {fmtMs(usAt('stark_rv32_prove_p4'))} ms | **1.55×** |
+| Prove (Phase 5, BabyBear) | {fmtMs(usAt('stark_m33_prove_bb'))} ms | {fmtMs(usAt('stark_rv32_prove_bb'))} ms | **1.42×** |
+| Verify (Phase 5, BabyBear) | {fmtMs(usAt('stark_m33_verify_bb'))} ms | {fmtMs(usAt('stark_rv32_verify_bb'))} ms | **1.39×** |
+
+The gap moved from 1.55× to 1.42×, not to 1.07×. But look at verify: **1.39×**. Verify at this N is almost pure Blake3 Merkle path work, basically no field arithmetic at all. If verify is 1.39× slower on RV32, that's the Blake3 floor. Prove is 1.42×. So field arithmetic adds 0.03× on top of the hash baseline. That's it.
+
+**Blake3 runs ~1.4× faster on M33 than on Hazard3 regardless of field.** Changing fields doesn't help because the bottleneck was never the field to begin with. The Phase 3.3 verifier had a 1.55× gap because Goldilocks field arithmetic was adding a big layer on top. Remove that layer by switching to BabyBear and you land at the hash floor. The floor is 1.39× and isn't going anywhere unless you attack the hash itself.
+
+## Breaking the N=256 ceiling
+
+N=512 OOMs instantly. Two realistic paths forward:
+
+<CardGrid>
+  <Card title="Field-native hash" icon="approve-check-circle">
+    Poseidon or Rescue over BabyBear. A field hash operates directly on field elements, so FRI commitment is all field arithmetic, no byte-oriented compression. Merkle trees shrink, prove time drops, and the 1.4× ISA gap might finally narrow. This is what Plonky3 does. `zkmcu-poseidon-circuit` is the scaffold in the repo already.
+  </Card>
+  <Card title="External PSRAM" icon="puzzle">
+    The RP2350 supports QSPI-connected PSRAM. The Pico 2 W doesn't have it, but a custom board with 8-16 MB PSRAM lifts the ceiling to N=4096 or beyond. No software changes, just memory. Useful if you need large traces and the QSPI latency hit is acceptable.
+  </Card>
+</CardGrid>
+
+## Zbb Blake3 on Hazard3
+
+Hazard3 implements the RISC-V Zbb bitmanip extension — `ror`, `rol`, `andn` etc. Blake3's compression function has 4 `ror` instructions per g-function call × 8 calls × 7 rounds = 224 rotations per block. Without Zbb each rotation is 3 instructions (`srl` + `sll` + `or`). With Zbb it's 1.
+
+LLVM handles this automatically with the right target feature, no hand-written assembly needed. Just add `-C target-feature=+zbb` to the RV32 rustflags and recompile.
+
+Rough estimate: ~20 % Blake3 speedup on RV32. Prove goes from 211 ms to ~170 ms, ISA gap from 1.42× to ~1.15×. Not zero because the hash floor is a real floor, but a meaningful improvement for basically free. This is Phase 6.
+
+## Reproducing
+
+```bash
+# Phase 5 M33 firmware (BabyBear + Quartic, ~95-bit security)
+just build-m33-stark-prover-bb
+
+# scp to Pi 5:
+scp target/thumbv8m.main-none-eabihf/release/bench-rp2350-m33-stark-prover-bb \
+    pid-admin@10.42.0.30:/tmp/bench-m33-stark-prover-bb.elf
+
+# On the Pi 5, Pico in BOOTSEL:
+picotool load -v -x -t elf /tmp/bench-m33-stark-prover-bb.elf
+cat /dev/ttyACM0
+# PROVE ok, VERIFY ok, cycle counts, heap peak printed over serial
+
+# Phase 5 RV32 firmware — same flow, different binary
+just build-rv32-stark-prover-bb
+```
+
+Raw data under [`benchmarks/runs/2026-04-26-{m33,rv32}-stark-prover-{fib,bb}`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs). Typst reports at [`research/reports/2026-04-26-stark-prover-results.typ`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/reports/2026-04-26-stark-prover-results.typ) and [`-bb-results.typ`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/reports/2026-04-26-stark-prover-bb-results.typ).
+
+## What this does not claim
+
+- **N=256 is not a large workload.** Real zkVM traces are 2^16 to 2^22 steps. This is a Fibonacci toy. It proves that proving fits on the chip, not that production-scale proving fits.
+- **~32-bit security (Phase 4) is not production security.** It's a comparison baseline. Do not ship Phase 4 config.
+- **The prover is not constant-time.** Winterfell's internal code has known non-constant-time branches. For threat models where timing of the prove call leaks secrets, that's a separate problem.

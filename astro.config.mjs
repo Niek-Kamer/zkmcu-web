@@ -72,7 +72,8 @@ export default defineConfig({
         {
           label: "On silicon",
           items: [
-            { label: "STARK (75 ms, 100 KB)", link: "/stark/" },
+            { label: "STARK verify (75 ms, 100 KB)", link: "/stark/" },
+            { label: "STARK prover (148 ms, 95-bit)", link: "/stark-prover/" },
             {
               label: "BabyBear × Quartic (cross-ISA 1.04×)",
               link: "/babybear/",

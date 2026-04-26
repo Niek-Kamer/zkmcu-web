@@ -15,8 +15,9 @@ Let’s be real: this is a self-audit. I wrote the code and now I’m grading my
 
 ## The TL;DR
 
-- **Main is clean**: Found zero blockers or "should-fix" issues in the latest `main` across all three verifiers, the UMAAL asm, and the Winterfell fork.
+- **Main is clean**: Found zero blockers or "should-fix" issues in the latest `main` across all three verifiers, the UMAAL asm, the Winterfell fork, the BabyBear field, and the on-device prover firmwares.
 - **Caught 7 bugs early**: I didn't just find them; I nuked them. All 7 were fixed within 24 hours and documented in [`research/postmortems/`](https://github.com/Niek-Kamer/zkmcu/tree/main/research/postmortems). I publish my failures so you can learn from them.
+- **ASM verified on silicon**: The UMAAL Montgomery multiply is now differentially tested on the actual Cortex-M33, not just on x86. See below.
 - **One loose end**: Semaphore verifying-key freshness in CI is still an open question. See "Known limitations."
 
 ## What I actually checked
@@ -38,7 +39,7 @@ Let’s be real: this is a self-audit. I wrote the code and now I’m grading my
 - Hard caps on `MAX_NUM_IC` and `MAX_PROOF_SIZE`.
 - Found an unbounded `Vec::with_capacity` deep inside Winterfell’s deserializer. That’s a classic DoS vector. I patched it in our fork with a `remaining_bytes` cap. Read the postmortem: [`2026-04-24-stark-unbounded-vec-alloc`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-24-stark-unbounded-vec-alloc.typ).
 
-**Hand-rolled ASM differential testing.** Writing ARMv8-M assembly for Montgomery multiplication is "cowboy territory" unless you can prove it's right. I cross-check the ASM output against a pure Rust reference implementation (`mul_reduce_u32_ref`) using randomized inputs. It matches, byte-for-byte.
+**Hand-rolled ASM differential testing — on actual hardware.** Writing ARMv8-M assembly for Montgomery multiplication is "cowboy territory" unless you can prove it's right. The host-side test cross-checks asm against the pure-Rust reference on x86. But x86 is not the RP2350. There's now a dedicated `bench-rp2350-m33-bn-asm-test` firmware that runs `selftest_fq` and `selftest_fr` on the Cortex-M33 itself: random inputs via an on-device PRNG, asm result vs reference result compared byte-for-byte, PASS/FAIL over USB serial. It matches.
 
 **Sound Allocator.** The `zkmcu-bump-alloc` isn't just a simple pointer. It’s been stress-tested for concurrency and alignment (1 to 64 bytes). Every `unsafe` block has a `// SAFETY:` comment because I'm not a savage.
 
@@ -46,7 +47,7 @@ Let’s be real: this is a self-audit. I wrote the code and now I’m grading my
 
 ## How I checked it (The Receipts)
 
-- **100+ Adversarial Tests**: I ran 84 tests on Groth16 and 19 on the STARK wrapper. This includes flipping every single bit in a valid proof to make sure _nothing_ produces a false positive `Ok(true)`.
+- **100+ Adversarial Tests**: 84 tests on Groth16, 19 on the STARK wrapper. This includes flipping every single bit in a valid proof to make sure _nothing_ produces a false positive `Ok(true)`. On-device prover firmwares immediately self-verify every proof they generate — "PROVE ok" always comes with a "VERIFY ok" on the same silicon.
 - **Fuzzing to death**: Ran `libFuzzer` on the STARK parser. **91 million executions. Zero crashes.** The fuzzer tried everything; it found nothing.
 - **Differential testing**: I compared zkmcu against the "big boys": `arkworks`, `substrate-bn`, and `bls12_381`. If they agree on the math, I'm happy.
 - **CI Discipline**: `just check-full` runs everything—lints, tests, and fuzzing—in 80 seconds. If a commit breaks a rule, it doesn't land.

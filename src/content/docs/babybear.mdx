@@ -145,6 +145,21 @@ cat /dev/ttyACM0
 
 Raw runs under [`benchmarks/runs/2026-04-24-{m33,rv32}-stark-fib-1024-babybear-q{,-kara}`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs). Full typst report at [`research/reports/2026-04-24-babybear-quartic-cross-isa.typ`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/reports/2026-04-24-babybear-quartic-cross-isa.typ).
 
+## Phase 5: the prover tells a different BabyBear story
+
+Phase 3.3 was about the verifier. Phase 5 (added later) benchmarks the on-device prover with the same BabyBear × Quartic config. The result is completely different.
+
+| Config | M33 prove | RV32 prove | vs Goldilocks |
+|---|---:|---:|---:|
+| Goldilocks+None prover (Phase 4, ~32-bit) | 134 ms | 208 ms | baseline |
+| **BabyBear+Quartic prover (Phase 5, ~95-bit)** | **148 ms** | **211 ms** | **+10 %** |
+
++10 % prove overhead for 3× more security bits, and the heap actually shrinks by 52 KB because BabyBear elements are 4 bytes not 8. Compare that to the verifier where BabyBear was +66 % worse.
+
+The difference is bottleneck. The verifier is almost purely Blake3 hash work (Merkle path checks). Field arithmetic is a small fraction. So BabyBear's field advantage barely shows up. The prover spends significant time on the LDE and constraint evaluation, wich is field-arithmetic-heavy. Half the memory bandwidth and faster field multiplies actually matter there.
+
+The cross-ISA prove gap with the prover: 1.55× (Phase 4, Goldilocks) → 1.42× (Phase 5, BabyBear). The hypothesis was it would collapse to 1.07×. It didn't — see [STARK prover](/stark-prover/) for the full explanation, but the short answer is Blake3 is the ISA gap floor at 1.39× and field arithmetic adds only 0.03× on top.
+
 ## What's next
 
 Three open tracks for phase 3.4 or later, in rough order of payoff:

@@ -14,6 +14,18 @@ export const BENCHMARKS = {
 	stark_m33_tlsf:  { slug: '2026-04-24-m33-stark-fib-1024-q-tlsf',  bench: 'stark_verify_fib_1024_q_tlsf' },
 	stark_rv32_tlsf: { slug: '2026-04-24-rv32-stark-fib-1024-q-tlsf', bench: 'stark_verify_fib_1024_q_tlsf' },
 
+	// STARK on-device prover — Phase 4 (Goldilocks+None, ~32-bit security, N=256)
+	stark_m33_prove_p4:   { slug: '2026-04-26-m33-stark-prover-fib', bench: 'stark_prove_fib_n256' },
+	stark_rv32_prove_p4:  { slug: '2026-04-26-m33-stark-prover-fib', bench: 'stark_prove_fib_n256_rv32' },
+	stark_m33_verify_p4:  { slug: '2026-04-26-m33-stark-prover-fib', bench: 'stark_verify_fib_n256' },
+	stark_rv32_verify_p4: { slug: '2026-04-26-m33-stark-prover-fib', bench: 'stark_verify_fib_n256_rv32' },
+
+	// STARK on-device prover — Phase 5 (BabyBear+Quartic, ~95-bit security, N=256)
+	stark_m33_prove_bb:   { slug: '2026-04-26-m33-stark-prover-bb', bench: 'stark_prove_fib_n256' },
+	stark_rv32_prove_bb:  { slug: '2026-04-26-rv32-stark-prover-bb', bench: 'stark_prove_fib_n256' },
+	stark_m33_verify_bb:  { slug: '2026-04-26-m33-stark-prover-bb', bench: 'stark_verify_fib_n256' },
+	stark_rv32_verify_bb: { slug: '2026-04-26-rv32-stark-prover-bb', bench: 'stark_verify_fib_n256' },
+
 	// BN254 Groth16 headline (1 public input, square circuit)
 	bn254_m33:  { slug: '2026-04-22-m33-heap-96k-confirmed', bench: 'groth16_verify_square' },
 	bn254_rv32: { slug: '2026-04-21-rv32-stack-painted',     bench: 'groth16_verify' },
