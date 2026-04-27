@@ -15,6 +15,36 @@ import { fmtMs } from '../../lib/format';
   <Badge text="Blake3 is the ISA gap floor" variant="tip" />
 </div>
 
+## Threshold circuit: first real predicate
+
+Yeah so Fibonacci is the hello world of ZK. Fine for proving the prover fits on the chip, not exactly something anyone deploys.
+
+The threshold circuit is the first non-trivial predicate we've run. The claim: `value=37 < threshold=100`. Circuit bit-decomposes `diff = threshold - value - 1` over 32 rows, then asserts `remaining[32] = 0` as a boundary condition. If that holds there was no field underflow, so `diff ≥ 0`, so `value < threshold`. The device cannot produce a valid proof for a false claim without breaking the hash function. Unforgeable.
+
+| | Cortex-M33 |
+|-|---:|
+| prove | **{fmtMs(usAt('threshold_m33_prove'))} ms** |
+| verify | **{fmtMs(usAt('threshold_m33_verify'))} ms** |
+| heap peak | **64 KB** |
+| proof size | 5.8 KB |
+| security (conjectured) | 21 bit |
+| trace | 2 columns × 64 rows |
+| heap after | 10 bytes |
+
+Compare that against Fibonacci N=256 (same field, same security target, same 11 queries):
+
+| | Fibonacci N=256 | Threshold N=64 | **delta** |
+|-|---:|---:|---:|
+| prove | {fmtMs(usAt('stark_m33_prove_bb'))} ms | {fmtMs(usAt('threshold_m33_prove'))} ms | **3.1× faster** |
+| verify | {fmtMs(usAt('stark_m33_verify_bb'))} ms | {fmtMs(usAt('threshold_m33_verify'))} ms | 1.1× faster |
+| heap | 248 KB | 64 KB | **3.9× less** |
+
+The verify speedup is only 1.1× even though the trace is 4× shorter. Verifier cost at 11 queries is FRI-dominated — opening 11 Merkle paths costs the same regardless of trace length. Prove and heap scale roughly with the trace, verifier barely moves.
+
+So yeah the prover scales nicely, the verifier is query-bound. If you want a faster verifier you need fewer queries or a larger blowup factor, not a shorter trace.
+
+---
+
 Yeah so phases 1-3 were all about verification. Take a proof someone else generated, verify it fits. Phase 4 asks a different question: can the RP2350 generate the proof too? I figured it probably couldn't at production security and I was basically wrong.
 
 **{fmtMs(usAt('stark_m33_prove_bb'))} ms to prove on Cortex-M33 at 95-bit conjectured security.** {fmtMs(usAt('stark_rv32_prove_bb'))} ms on Hazard3 RV32. That's +10 % over the 32-bit-security baseline for three times the security bits. And the heap actually shrinks because BabyBear elements are 4 bytes not 8. Not what I expected going in.

@@ -10,8 +10,8 @@ hero:
       link: /getting-started/
       icon: right-arrow
       variant: primary
-    - text: STARK verify in 75 ms
-      link: /stark/
+    - text: STARK prover in 48 ms
+      link: /stark-prover/
       icon: rocket
       variant: secondary
     - text: View on GitHub
@@ -56,6 +56,9 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
 </a>
 
 <CardGrid>
+  <Card title={`${fmtMs(usAt('threshold_m33_prove'))} ms prove`} icon="approve-check-circle">
+    **First STARK prover on bare metal.** Threshold-check circuit — prove `value < threshold` — N=64, BabyBear+Quartic, 64 KB heap peak. FibRace needs 3 GB for this. [More](/stark-prover/)
+  </Card>
   <Card title={`${fmtMs(usAt('stark_m33_tlsf'))} ms`} icon="rocket">
     **STARK verify at 95-bit security.** Winterfell Fibonacci AIR over Goldilocks, quadratic extension, TlsfHeap allocator. Variance sits at 0.08 %, wich is basically the silicon noise floor. [More](/stark/)
   </Card>
