@@ -20,9 +20,9 @@ export const BENCHMARKS = {
 	stark_m33_verify_p4:  { slug: '2026-04-26-m33-stark-prover-fib', bench: 'stark_verify_fib_n256' },
 	stark_rv32_verify_p4: { slug: '2026-04-26-m33-stark-prover-fib', bench: 'stark_verify_fib_n256_rv32' },
 
-	// STARK on-device prover — threshold-check circuit (first real predicate, N=64)
-	threshold_m33_prove:  { slug: '2026-04-27-m33-stark-prover-threshold', bench: 'stark_prove' },
-	threshold_m33_verify: { slug: '2026-04-27-m33-stark-prover-threshold', bench: 'stark_verify' },
+	// STARK on-device prover — threshold-check circuit (first real predicate, N=64, 64 queries, 123-bit)
+	threshold_m33_prove:  { slug: '2026-04-27-m33-stark-threshold-q64', bench: 'stark_prove' },
+	threshold_m33_verify: { slug: '2026-04-27-m33-stark-threshold-q64', bench: 'stark_verify' },
 
 	// STARK on-device prover — Phase 5 (BabyBear+Quartic, ~95-bit security, N=256)
 	stark_m33_prove_bb:   { slug: '2026-04-26-m33-stark-prover-bb', bench: 'stark_prove_fib_n256' },

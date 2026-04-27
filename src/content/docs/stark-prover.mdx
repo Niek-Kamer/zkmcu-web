@@ -19,29 +19,31 @@ import { fmtMs } from '../../lib/format';
 
 Yeah so Fibonacci is the hello world of ZK. Fine for proving the prover fits on the chip, not exactly something anyone deploys.
 
-The threshold circuit is the first non-trivial predicate we've run. The claim: `value=37 < threshold=100`. Circuit bit-decomposes `diff = threshold - value - 1` over 32 rows, then asserts `remaining[32] = 0` as a boundary condition. If that holds there was no field underflow, so `diff ≥ 0`, so `value < threshold`. The device cannot produce a valid proof for a false claim without breaking the hash function. Unforgeable.
+The threshold circuit is the first non-trivial predicate we've run. The claim: `value=37 < threshold=100`. Circuit bit-decomposes `diff = threshold - value - 1` over 32 rows, then asserts `remaining[32] = 0` as a boundary condition. If that holds there was no field underflow, so `diff ≥ 0`, so `value < threshold`. The device cannot produce a valid proof for a false claim without breaking the hash function.
 
 | | Cortex-M33 |
 |-|---:|
 | prove | **{fmtMs(usAt('threshold_m33_prove'))} ms** |
 | verify | **{fmtMs(usAt('threshold_m33_verify'))} ms** |
-| heap peak | **64 KB** |
-| proof size | 5.8 KB |
-| security (conjectured) | 21 bit |
+| heap peak | **78 KB** |
+| proof size | 11.9 KB |
+| security (conjectured) | 123 bit |
 | trace | 2 columns × 64 rows |
 | heap after | 10 bytes |
 
-Compare that against Fibonacci N=256 (same field, same security target, same 11 queries):
+64 FRI queries at blowup=4. Bumping from 11 to 64 queries added 1.2% prove overhead and 14 KB heap while jumping from 21-bit to 123-bit security. Prove time is basically query-invariant because the work is in LDE + FRI folding, not query opening.
+
+Compare that against Fibonacci N=256 (same field, 11 queries, 95-bit security):
 
 | | Fibonacci N=256 | Threshold N=64 | **delta** |
 |-|---:|---:|---:|
 | prove | {fmtMs(usAt('stark_m33_prove_bb'))} ms | {fmtMs(usAt('threshold_m33_prove'))} ms | **3.1× faster** |
-| verify | {fmtMs(usAt('stark_m33_verify_bb'))} ms | {fmtMs(usAt('threshold_m33_verify'))} ms | 1.1× faster |
-| heap | 248 KB | 64 KB | **3.9× less** |
+| verify | {fmtMs(usAt('stark_m33_verify_bb'))} ms | {fmtMs(usAt('threshold_m33_verify'))} ms | 1.5× slower |
+| heap | 248 KB | 78 KB | **3.2× less** |
 
-The verify speedup is only 1.1× even though the trace is 4× shorter. Verifier cost at 11 queries is FRI-dominated — opening 11 Merkle paths costs the same regardless of trace length. Prove and heap scale roughly with the trace, verifier barely moves.
+The verify is actually slower for threshold even though the trace is 4× shorter. Reason: 64 queries vs 11 queries means the verifier checks 64 Merkle paths instead of 11. At 11 queries the FRI cost dominates trace cost; at 64 queries the per-query work shows up. Prove and heap scale with trace length, verifier scales with query count.
 
-So yeah the prover scales nicely, the verifier is query-bound. If you want a faster verifier you need fewer queries or a larger blowup factor, not a shorter trace.
+So yeah the prover scales nicely with circuit size, the verifier is query-bound. If you want a faster verifier you need fewer queries or a larger blowup factor, not a shorter trace.
 
 ---
 
