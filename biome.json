@@ -13,6 +13,7 @@
 			"!node_modules",
 			"!bun.lock",
 			"!public",
+			"!zkmcu",
 			"!**/*.astro",
 			"!**/*.mdx",
 			"!**/*.md"

@@ -23,6 +23,7 @@ export default tseslint.config(
 			'.astro/**',
 			'node_modules/**',
 			'public/**',
+			'zkmcu/**',
 			'bun.lock',
 		],
 	},
@@ -104,8 +105,19 @@ export default tseslint.config(
 	},
 	{
 		// Config files themselves aren't type-checked by tsconfig, so opt
-		// them out of type-aware rules to avoid parser errors.
+		// them out of type-aware rules to avoid parser errors. Node globals
+		// (URL, process, Buffer, etc) are added explicitly so the bare-bones
+		// `no-undef` doesn't flag them in config files.
 		files: ['*.config.{js,mjs,ts}', 'eslint.config.js'],
 		...tseslint.configs.disableTypeChecked,
+		languageOptions: {
+			globals: {
+				URL: 'readonly',
+				URLSearchParams: 'readonly',
+				process: 'readonly',
+				Buffer: 'readonly',
+				console: 'readonly',
+			},
+		},
 	},
 );

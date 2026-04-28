@@ -21,3 +21,8 @@ pnpm-debug.log*
 
 # macOS-specific files
 .DS_Store
+
+# Nested checkout of the bindings repo, used for local previewing only
+# (the docs site references content from there). Excluded from this
+# repo's tooling and history.
+zkmcu/
