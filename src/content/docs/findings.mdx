@@ -19,7 +19,7 @@ Each entry below links to the full Typst source on GitHub. PDFs compile via `jus
 
 ### 2026-04-23, [no-umaal-codegen](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-23-no-umaal-codegen.typ)
 
-Cortex-M33 has the `UMAAL` instruction (unsigned multiply-accumulate-accumulate long) wich is exactly the shape Montgomery reduction needs. LLVM did not emit it from straight Rust, so the original 988 ms baseline was leaving performance on the floor. Hand-wrote the asm path, dropped to 641 ms. Rule extracted: don't trust the compiler to find dual-accumulator instructions, it doesn't.
+Cortex-M33 has the `UMAAL` instruction (unsigned multiply-accumulate-accumulate long) wich is exactly the shape Montgomery reduction needs. LLVM did not emit it from straight Rust, so the original 988 ms baseline was leaving performance on the floor. Hand-wrote the asm path, dropped to 641 ms; later firmware additions shifted code placement enough to drop the verify another ~14 % to **551 ms** without touching the verify logic. Rule extracted: don't trust the compiler to find dual-accumulator instructions, and don't underestimate how much LTO + linker placement can move a hot path that lives in `.ram_text`.
 
 ### 2026-04-23, [opt-level-3-regression](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-23-opt-level-3-regression.typ)
 

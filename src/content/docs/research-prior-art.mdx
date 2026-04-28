@@ -34,7 +34,7 @@ The full survey, with citations, comparisons against zkmcu's measured numbers, a
 
 ## Headline finding
 
-For `no_std` Rust Groth16 verifiers on Cortex-M33 specifically, **the niche was open** when zkmcu's first benchmark landed in April 2026. zkmcu's BN254 verifier at 988 ms baseline (later 641 ms after UMAAL asm) was the first published number I could find. If you know of an earlier one, [tell me](/contact/) and I'll update the survey.
+For `no_std` Rust Groth16 verifiers on Cortex-M33 specifically, **the niche was open** when zkmcu's first benchmark landed in April 2026. zkmcu's BN254 verifier at 988 ms baseline (later 551 ms after UMAAL asm + LTO placement gains) was the first published number I could find. If you know of an earlier one, [tell me](/contact/) and I'll update the survey.
 
 For STARK verifiers, winterfell-based work existed on host but **no `no_std` port targeting microcontroller-class memory** was published. zkmcu's 75 ms STARK verify was, as far as I can find, the first.
 

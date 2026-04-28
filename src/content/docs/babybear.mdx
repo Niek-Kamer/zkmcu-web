@@ -167,6 +167,6 @@ Three open tracks for phase 3.4 or later, in rough order of payoff:
 
 - **Plonky3 circle-STARK over Mersenne-31.** A different protocol where extension arithmetic is designed around 32-bit hardware. Probably the only realistic path to "small-field STARK beats Goldilocks-Quadratic on MCU at 95-bit". Significant port cost, 1-2 weeks.
 - **Bigger AIRs** ($N = 2^{16}$, $N = 2^{18}$). Extension-field work scales linearly with trace length; hashing is sub-linear. Possible BabyBear's relative cost improves at larger AIRs where extension work is a smaller fraction of total verify time.
-- **Hand-asm UMULL for BabyBear `mont_reduce`** on M33. Same playbook as phase-2 Groth16 went 988 ms → 641 ms. But Karatsuba already showed extension-mul isn't the M33 bottleneck, so expected payoff is small.
+- **Hand-asm UMULL for BabyBear `mont_reduce`** on M33. Same playbook as phase-2 Groth16 went 988 ms → 551 ms. But Karatsuba already showed extension-mul isn't the M33 bottleneck, so expected payoff is small.
 
 The cross-ISA and variance results hold regardless of wich thread gets picked up.

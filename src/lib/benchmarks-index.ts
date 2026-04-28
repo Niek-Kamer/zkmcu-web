@@ -20,6 +20,26 @@ export const BENCHMARKS = {
 		bench: 'stark_verify_fib_1024_q_tlsf',
 	},
 
+	// STARK allocator-comparison rows (LlffHeap + BumpAlloc) for the
+	// benchmarks page. Same circuit + ISA as `stark_*_tlsf`, only the
+	// allocator changes between runs.
+	stark_m33_llff: {
+		slug: '2026-04-24-m33-stark-fib-1024-q-clone-hoisted',
+		bench: 'stark_verify_fib_1024_q_no_clone',
+	},
+	stark_rv32_llff: {
+		slug: '2026-04-24-rv32-stark-fib-1024-q-clone-hoisted',
+		bench: 'stark_verify_fib_1024_q_no_clone',
+	},
+	stark_m33_bump: {
+		slug: '2026-04-24-m33-stark-fib-1024-q-bump',
+		bench: 'stark_verify_fib_1024_q_bump',
+	},
+	stark_rv32_bump: {
+		slug: '2026-04-24-rv32-stark-fib-1024-q-bump',
+		bench: 'stark_verify_fib_1024_q_bump',
+	},
+
 	// STARK on-device prover — Phase 4 (Goldilocks+None, ~32-bit security, N=256)
 	stark_m33_prove_p4: {
 		slug: '2026-04-26-m33-stark-prover-fib',
@@ -67,9 +87,12 @@ export const BENCHMARKS = {
 	},
 
 	// BN254 Groth16 headline (1 public input, square circuit)
+	// Updated 2026-04-28: rebaseline run replaces the unoptimized
+	// heap-96k-confirmed pointer (962 ms) with the post-UMAAL +
+	// post-cost-breakdown firmware (551 ms).
 	bn254_m33: {
-		slug: '2026-04-22-m33-heap-96k-confirmed',
-		bench: 'groth16_verify_square',
+		slug: '2026-04-28-m33-bn254-rebench',
+		bench: 'groth16_verify',
 	},
 	bn254_rv32: {
 		slug: '2026-04-21-rv32-stack-painted',

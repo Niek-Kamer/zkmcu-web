@@ -6,7 +6,7 @@ description: Directly-measured performance numbers from the Raspberry Pi Pico 2 
 import BenchTable from '../../components/BenchTable.astro';
 import { proofBytes } from '../../lib/benchmarks';
 import { usAt } from '../../lib/benchmarks-index';
-import { fmtMs } from '../../lib/format';
+import { fmtMs, fmtMs1 } from '../../lib/format';
 
 All numbers measured on-device via USB-CDC serial output. No emulation, no extrapolation. Full per-run data (raw serial logs + structured TOML + observations) lives under [`benchmarks/runs/`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs) in the repo.
 
@@ -70,9 +70,9 @@ Fibonacci-1024 AIR, `FieldExtension::Quadratic` (95-bit conjectured security). T
 
 | Allocator | M33 median | M33 std-dev | M33 heap peak | RV32 median | RV32 std-dev | Fits 128 KB? |
 |---|---:|---:|---:|---:|---:|:---:|
-| LlffHeap (linked-list first-fit) | 69.7 ms | 0.13 % IQR | 93.5 KB | 92.4 ms | ~0.46 % | ✓ |
-| **TlsfHeap (O(1), production default)** | **74.7 ms** | **0.08 %** | **93.5 KB** | **112.4 ms** | **0.11 %** | **✓** |
-| BumpAlloc (watermark-reset, benchmark only) | 67.9 ms | 0.08 % | 314 KB | 82.2 ms | 0.08 % | ✗ |
+| LlffHeap (linked-list first-fit) | {fmtMs1(usAt('stark_m33_llff'))} ms | 0.13 % IQR | 93.5 KB | {fmtMs1(usAt('stark_rv32_llff'))} ms | ~0.46 % | ✓ |
+| **TlsfHeap (O(1), production default)** | **{fmtMs1(usAt('stark_m33_tlsf'))} ms** | **0.08 %** | **93.5 KB** | **{fmtMs1(usAt('stark_rv32_tlsf'))} ms** | **0.11 %** | **✓** |
+| BumpAlloc (watermark-reset, benchmark only) | {fmtMs1(usAt('stark_m33_bump'))} ms | 0.08 % | 314 KB | {fmtMs1(usAt('stark_rv32_bump'))} ms | 0.08 % | ✗ |
 
 </div>
 
