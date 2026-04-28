@@ -1,10 +1,12 @@
 ---
 title: BabyBear × Quartic on MCU, a negative latency result
-description: Forked winterfell to add FieldExtension::Quartic, measured BabyBear-Quartic STARK verify on RP2350. Turns out Goldilocks-Quadratic still wins on latency, but BabyBear-Karatsuba collapses the Cortex-M33 vs Hazard3 gap from 1.51× to 1.04× and sets a new project variance record at 0.053 %.
+description: Forked winterfell to add FieldExtension::Quartic, measured BabyBear-Quartic STARK verify on RP2350. Turns out Goldilocks-Quadratic still wins on latency, but BabyBear-Karatsuba collapses the Cortex-M33 vs Hazard3 gap from 1.48× to 1.04× and sets a new project variance record at 0.053 %.
 ---
 
 import { Aside, CardGrid, Card } from '@astrojs/starlight/components';
 import HeroBadges from '../../components/HeroBadges.astro';
+import { usAt } from '../../lib/benchmarks-index';
+import { fmtMs1 } from '../../lib/format';
 
 <HeroBadges badges={[
   { text: 'winterfell 0.13 (forked)', variant: 'note' },
@@ -17,21 +19,21 @@ import HeroBadges from '../../components/HeroBadges.astro';
 
 Phase 3.3 was supposed to be the BabyBear win. Small field fits a `u32`, right? 32-bit MCU has a native `u32` multiply, Goldilocks has to emulate `u64` arithmetic everywhere, ofcourse BabyBear beats it. That was the pitch going in.
 
-Didn't work out like that. BabyBear × Quartic is **+66 % slower than Goldilocks × Quadratic on Cortex-M33**, and +15 % slower on Hazard3 RV32 even after hand-written Karatsuba optimisations. The 31-bit-fits-register advantage gets eaten by the Quartic extension overhead wich you can't escape at 95-bit conjectured security.
+Didn't work out like that. BabyBear × Quartic is **+69.7 % slower than Goldilocks × Quadratic on Cortex-M33**, and +19.5 % slower on Hazard3 RV32 even after hand-written Karatsuba optimisations. The 31-bit-fits-register advantage gets eaten by the Quartic extension overhead wich you can't escape at 95-bit conjectured security.
 
 But the run wasn't a write-off. Two findings came out that I think are more interesting than the "BabyBear wins" story would've been:
 
-1. **The cross-ISA gap collapses from 1.506× to 1.039×** when you swap Goldilocks-Quadratic for BabyBear-Karatsuba. That's the tightest M33-vs-Hazard3 ratio in the whole project.
+1. **The cross-ISA gap collapses from 1.475× to 1.039×** when you swap Goldilocks-Quadratic for BabyBear-Karatsuba. That's the tightest M33-vs-Hazard3 ratio in the whole project.
 2. **Variance record: 0.053 % std-dev on Hazard3** with BabyBear-Karatsuba. Below the previous record of 0.076 % from the bump allocator experiment.
 
 ## The four measurements
 
 | Config | M33 | RV32 | RV32/M33 |
 |---|---:|---:|---:|
-| Goldilocks × Quadratic, TLSF (phase 3.2.z baseline) | 74.65 ms | 112.40 ms | 1.506× |
+| Goldilocks × Quadratic, TLSF (production reference) | {fmtMs1(usAt('stark_m33_tlsf'))} ms | {fmtMs1(usAt('stark_rv32_tlsf'))} ms | 1.475× |
 | BabyBear × Quartic schoolbook, TLSF | 124.21 ms | 136.64 ms | 1.100× |
 | **BabyBear × Quartic Karatsuba, TLSF** | **124.22 ms** | **129.05 ms** | **1.039×** |
-| Δ vs Goldilocks | **+66 %** | **+15 %** | |
+| Δ vs Goldilocks | **+69.7 %** | **+19.5 %** | |
 
 Same silicon, same Blake3 hash, same TLSF allocator, same AIR (Fib-1024), same proof options. The only variables are the base field, the extension degree, and wich extension-mul algorithm we used.
 
@@ -103,7 +105,7 @@ BabyBear × Quartic Karatsuba on Hazard3 landed at **0.053 % std-dev / mean**, t
 Probably because BabyBear Mont-reduce is branch-free on u32-native Hazard3 (one `MUL` + one conditional subtract) and Karatsuba has fewer nested conditional branches than the schoolbook. Fewer mispredict opportunities on a minimal predictor.
 
 <Aside type="note" title="Use case: side-channel-sensitive firmware">
-  For hardware wallets or TEE firmware where timing variance is the threat model, the tradeoff at 95-bit security on Hazard3 becomes: accept +15 % median latency (129 ms vs 112 ms Goldilocks) in exchange for 1.5× tighter variance (0.053 % vs 0.081 %). For Hazard3-specifically deployments that's probably worth it.
+  For hardware wallets or TEE firmware where timing variance is the threat model, the tradeoff at 95-bit security on Hazard3 becomes: accept +19.5 % median latency (129 ms vs 108 ms Goldilocks) in exchange for 1.5× tighter variance (0.053 % vs 0.081 %). For Hazard3-specifically deployments that's probably worth it.
 </Aside>
 
 ## Production recommendation hasn't changed
@@ -112,7 +114,7 @@ Phase 3.2.z said `TlsfHeap + Goldilocks × Quadratic` for 95-bit production STAR
 
 <CardGrid>
   <Card title="Latency-first on either ISA" icon="rocket">
-    Goldilocks × Quadratic, TLSF. 74.65 ms on M33, 112.40 ms on Hazard3. See [STARK verify on MCU](/stark/).
+    Goldilocks × Quadratic, TLSF. {fmtMs1(usAt('stark_m33_tlsf'))} ms on M33, {fmtMs1(usAt('stark_rv32_tlsf'))} ms on Hazard3. See [STARK verify on MCU](/stark/).
   </Card>
   <Card title="Side-channel-sensitive on Hazard3" icon="approve-check-circle">
     BabyBear × Quartic Karatsuba, TLSF. 129 ms median, 0.053 % variance. Tighter timing profile than any Goldilocks config, at the cost of ~15 % median.

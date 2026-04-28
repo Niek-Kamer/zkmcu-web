@@ -47,6 +47,8 @@ Compare that against Fibonacci N=256 (same field, 11 queries, 95-bit security):
 | verify | {fmtMs(usAt('stark_m33_verify_bb'))} ms | {fmtMs(usAt('threshold_m33_verify'))} ms | 1.5× slower |
 | heap | 248 KB | 78 KB | **3.2× less** |
 
+Heap peaks read from [`2026-04-26-m33-stark-prover-bb/result.toml`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs/2026-04-26-m33-stark-prover-bb) (`heap_peak_bytes = 253_804`) and [`2026-04-27-m33-stark-threshold-q64/result.toml`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs/2026-04-27-m33-stark-threshold-q64) (`heap_peak = 78_144`).
+
 The verify is actually slower for threshold even though the trace is 4× shorter. Reason: 64 queries vs 11 queries means the verifier checks 64 Merkle paths instead of 11. At 11 queries the FRI cost dominates trace cost; at 64 queries the per-query work shows up. Prove and heap scale with trace length, verifier scales with query count.
 
 So yeah the prover scales nicely with circuit size, the verifier is query-bound. If you want a faster verifier you need fewer queries or a larger blowup factor, not a shorter trace.

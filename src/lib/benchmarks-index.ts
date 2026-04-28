@@ -10,13 +10,17 @@
 import { us } from './benchmarks';
 
 export const BENCHMARKS = {
-	// STARK headline (TlsfHeap, 95-bit Quadratic), the production pick
+	// STARK headline (TlsfHeap, 95-bit Quadratic), the production pick.
+	// Updated 2026-04-28 audit: repoint at bench-core rebaseline runs
+	// wich are the same circuit and config measured under the unified
+	// firmware harness; supersedes the older `*-stark-fib-1024-q-tlsf/`
+	// pointers (74.65 / 112.40 ms) with 73.20 / 107.96 ms.
 	stark_m33_tlsf: {
-		slug: '2026-04-24-m33-stark-fib-1024-q-tlsf',
+		slug: '2026-04-24-bench-core-m33-stark-goldilocks',
 		bench: 'stark_verify_fib_1024_q_tlsf',
 	},
 	stark_rv32_tlsf: {
-		slug: '2026-04-24-rv32-stark-fib-1024-q-tlsf',
+		slug: '2026-04-24-bench-core-rv32-stark-goldilocks',
 		bench: 'stark_verify_fib_1024_q_tlsf',
 	},
 

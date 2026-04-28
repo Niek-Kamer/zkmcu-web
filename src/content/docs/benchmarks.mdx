@@ -139,7 +139,9 @@ The `vk_x = IC[0] + Σ x[i] · IC[i+1]` step is a G1 scalar multiplication per p
 | Ethereum address | ~160 | ~40 ms |
 | Merkle root / hash output | ~254 random | **~71 ms** |
 
-Semaphore's 4 public inputs (merkle root, nullifier, hash-of-message, hash-of-scope) are all full 254-bit scalars, they land in the bottom row. A 10-public-input circuit with merkle-root-shaped inputs takes ~1.6 s, the same circuit shape with counter-shaped inputs takes ~990 ms. Circuit designers targeting embedded verify should fold public state into a single hash-commitment `Fr` if at all possible. **Per-input cost differs by 24×** between the two regimes.
+Per-input cost figures are estimates derived from the public-input scaling benches in [`2026-04-21-m33-scaling/result.toml`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs/2026-04-21-m33-scaling) extrapolated by Hamming-weight-vs-scalar-size fit; not yet anchored to dedicated per-input-shape benches.
+
+Semaphore's 4 public inputs (merkle root, nullifier, hash-of-message, hash-of-scope) are all full 254-bit scalars, they land in the bottom row. A 10-public-input circuit with merkle-root-shaped inputs takes ~1.6 s under the same fit, the same circuit shape with counter-shaped inputs takes ~990 ms. Circuit designers targeting embedded verify should fold public state into a single hash-commitment `Fr` if at all possible. **Per-input cost differs by ~24×** between the two regimes.
 
 ## Cross-ISA, three families
 

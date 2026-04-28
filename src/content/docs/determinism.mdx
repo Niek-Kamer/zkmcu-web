@@ -5,6 +5,8 @@ description: Why STARK verify timing variance dropped from 0.46 % to 0.08 % on t
 
 import { Aside, CardGrid, Card } from '@astrojs/starlight/components';
 import HeroBadges from '../../components/HeroBadges.astro';
+import { usAt } from '../../lib/benchmarks-index';
+import { fmtMs1 } from '../../lib/format';
 
 <HeroBadges badges={[
   { text: 'phase 3.2.x-3.2.z', variant: 'note' },
@@ -93,9 +95,9 @@ Result:
 
 | Allocator | M33 median | M33 std-dev | M33 heap peak | 128 KB? |
 |---|---:|---:|---:|:---:|
-| LlffHeap | 69.67 ms | ~0.13 % IQR | 93.5 KB | ✓ |
-| BumpAlloc | 67.95 ms | 0.080 % | 314 KB | ✗ |
-| **TlsfHeap** | **74.65 ms** | **0.081 %** | **93.5 KB** | **✓** |
+| LlffHeap | {fmtMs1(usAt('stark_m33_llff'))} ms | ~0.13 % IQR | 93.5 KB | ✓ |
+| BumpAlloc | {fmtMs1(usAt('stark_m33_bump'))} ms | 0.080 % | 314 KB | ✗ |
+| **TlsfHeap** | **{fmtMs1(usAt('stark_m33_tlsf'))} ms** | **0.081 %** | **93.5 KB** | **✓** |
 
 TLSF's std-dev matches BumpAlloc's. Heap peak matches LlffHeap's (byte-identical, because both hold the same live allocations). Median is 5 ms slower than LlffHeap, the price of O(1) worst-case bound. For hardware wallets where verify runs at human-action speed, that's invisible.
 
