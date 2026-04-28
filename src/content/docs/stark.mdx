@@ -3,15 +3,16 @@ title: STARK verify on a microcontroller
 description: Winterfell-generated Fibonacci STARK proof at 95-bit conjectured security, verified on a $7 Raspberry Pi Pico 2 W in 74.7 ms with 100 KB total RAM.
 ---
 
-import { Aside, Badge, CardGrid, Card } from '@astrojs/starlight/components';
+import { Aside, CardGrid, Card } from '@astrojs/starlight/components';
+import HeroBadges from '../../components/HeroBadges.astro';
 
-<div class="hero-badges">
-  <Badge text="winterfell 0.13" variant="note" />
-  <Badge text="95-bit conjectured security" variant="note" />
-  <Badge text="74.7 ms on Cortex-M33" variant="success" />
-  <Badge text="100 KB total RAM" variant="success" />
-  <Badge text="variance 0.08 %" variant="tip" />
-</div>
+<HeroBadges badges={[
+  { text: 'winterfell 0.13', variant: 'note' },
+  { text: '95-bit conjectured security', variant: 'note' },
+  { text: '74.7 ms on Cortex-M33', variant: 'success' },
+  { text: '100 KB total RAM', variant: 'success' },
+  { text: 'variance 0.08 %', variant: 'tip' },
+]} />
 
 `zkmcu-verifier-stark` is a `no_std` wrapper around winterfell 0.13 that exposes a zkmcu-shaped verify API for Goldilocks-field STARK proofs. First verified on silicon on 2026-04-23: **74.7 ms on Cortex-M33 @ 150 MHz, 112 ms on Hazard3 RV32**, 100 KB total RAM, variance 0.08 %. Every property that matters for a production hardware-wallet-class deployment, measured and reproducible.
 

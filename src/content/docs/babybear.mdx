@@ -3,16 +3,17 @@ title: BabyBear × Quartic on MCU, a negative latency result
 description: Forked winterfell to add FieldExtension::Quartic, measured BabyBear-Quartic STARK verify on RP2350. Turns out Goldilocks-Quadratic still wins on latency, but BabyBear-Karatsuba collapses the Cortex-M33 vs Hazard3 gap from 1.51× to 1.04× and sets a new project variance record at 0.053 %.
 ---
 
-import { Aside, Badge, CardGrid, Card } from '@astrojs/starlight/components';
+import { Aside, CardGrid, Card } from '@astrojs/starlight/components';
+import HeroBadges from '../../components/HeroBadges.astro';
 
-<div class="hero-badges">
-  <Badge text="winterfell 0.13 (forked)" variant="note" />
-  <Badge text="BabyBear × Quartic" variant="note" />
-  <Badge text="95-bit conjectured security" variant="note" />
-  <Badge text="cross-ISA gap 1.04×" variant="success" />
-  <Badge text="variance 0.053 % on Hazard3" variant="success" />
-  <Badge text="Goldilocks still wins on latency" variant="caution" />
-</div>
+<HeroBadges badges={[
+  { text: 'winterfell 0.13 (forked)', variant: 'note' },
+  { text: 'BabyBear × Quartic', variant: 'note' },
+  { text: '95-bit conjectured security', variant: 'note' },
+  { text: 'cross-ISA gap 1.04×', variant: 'success' },
+  { text: 'variance 0.053 % on Hazard3', variant: 'success' },
+  { text: 'Goldilocks still wins on latency', variant: 'caution' },
+]} />
 
 Phase 3.3 was supposed to be the BabyBear win. Small field fits a `u32`, right? 32-bit MCU has a native `u32` multiply, Goldilocks has to emulate `u64` arithmetic everywhere, ofcourse BabyBear beats it. That was the pitch going in.
 

@@ -20,14 +20,16 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid, Code, Aside, Badge } from '@astrojs/starlight/components';
+import { Card, CardGrid, Code, Aside } from '@astrojs/starlight/components';
+import HeroBadges from '../../components/HeroBadges.astro';
+import HeroStat from '../../components/HeroStat.astro';
 import { usAt } from '../../lib/benchmarks-index';
 import { fmtMs } from '../../lib/format';
 
-<div class="hero-badges">
-  <Badge text="no_std Rust" variant="note" />
-  <Badge text="128 KB SRAM tier" variant="tip" />
-</div>
+<HeroBadges badges={[
+  { text: 'no_std Rust', variant: 'note' },
+  { text: '128 KB SRAM tier', variant: 'tip' },
+]} />
 
 ## In five lines
 
@@ -47,13 +49,13 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
 
 ## Measured on silicon
 
-<a class="hero-stat" href="/semaphore/">
-  <div class="hero-stat__num">{fmtMs(usAt('bn254_m33_semaphore'))} ms</div>
-  <div class="hero-stat__label">Real Semaphore v4 proof, verified on a $7 MCU</div>
-  <div class="hero-stat__body">
-    BN254 Groth16, 4 public inputs, the actual Ethereum-Semaphore trusted setup. Same VK wich the `0x08` precompile accepts. No simplifications, no off-device preprocess, no cheating.
-  </div>
-</a>
+<HeroStat
+  value={`${fmtMs(usAt('bn254_m33_semaphore'))} ms`}
+  label="Real Semaphore v4 proof, verified on a $7 MCU"
+  href="/semaphore/"
+>
+  BN254 Groth16, 4 public inputs, the actual Ethereum-Semaphore trusted setup. Same VK wich the `0x08` precompile accepts. No simplifications, no off-device preprocess, no cheating.
+</HeroStat>
 
 <CardGrid>
   <Card title={`${fmtMs(usAt('threshold_m33_prove'))} ms prove`} icon="approve-check-circle">

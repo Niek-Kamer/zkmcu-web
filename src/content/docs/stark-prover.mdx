@@ -3,23 +3,24 @@ title: STARK prover on a microcontroller
 description: First on-device STARK proving on RP2350. Phase 4 shows feasibility at 134 ms (Goldilocks, ~32-bit security). Phase 5 reaches production security at 148 ms (BabyBear + Quartic, ~95-bit) with only +10 % overhead and a smaller heap.
 ---
 
-import { Aside, Badge, CardGrid, Card } from '@astrojs/starlight/components';
+import { Aside, CardGrid, Card } from '@astrojs/starlight/components';
+import HeroBadges from '../../components/HeroBadges.astro';
 import { usAt } from '../../lib/benchmarks-index';
 import { fmtMs } from '../../lib/format';
 
-<div class="hero-badges">
-  <Badge text="winterfell 0.13 (forked)" variant="note" />
-  <Badge text="on-device prove + self-verify" variant="note" />
-  <Badge text={`${fmtMs(usAt('stark_m33_prove_bb'))} ms at 95-bit security`} variant="success" />
-  <Badge text="N=256 SRAM ceiling confirmed" variant="caution" />
-  <Badge text="Blake3 is the ISA gap floor" variant="tip" />
-</div>
+<HeroBadges badges={[
+  { text: 'winterfell 0.13 (forked)', variant: 'note' },
+  { text: 'on-device prove + self-verify', variant: 'note' },
+  { text: `${fmtMs(usAt('stark_m33_prove_bb'))} ms at 95-bit security`, variant: 'success' },
+  { text: 'N=256 SRAM ceiling confirmed', variant: 'caution' },
+  { text: 'Blake3 is the ISA gap floor', variant: 'tip' },
+]} />
 
 ## Threshold circuit: first real predicate
 
 Yeah so Fibonacci is the hello world of ZK. Fine for proving the prover fits on the chip, not exactly something anyone deploys.
 
-The threshold circuit is the first non-trivial predicate we've run. The claim: `value=37 < threshold=100`. Circuit bit-decomposes `diff = threshold - value - 1` over 32 rows, then asserts `remaining[32] = 0` as a boundary condition. If that holds there was no field underflow, so `diff ≥ 0`, so `value < threshold`. The device cannot produce a valid proof for a false claim without breaking the hash function.
+The threshold circuit is the first non-trivial predicate we've run. The claim: `value=37 < threshold=100`. Circuit bit-decomposes `diff = threshold - value - 1` over 32 rows, then asserts `remaining[32] = 0` as a boundary condition. If that holds there was no field underflow, so `diff ≥ 0`, so `value < threshold`. The device cannot produce a valid proof for a false claim without either breaking STARK soundness or forging the Poseidon binding (see the security split below).
 
 | | Cortex-M33 |
 |-|---:|
@@ -27,9 +28,14 @@ The threshold circuit is the first non-trivial predicate we've run. The claim: `
 | verify | **{fmtMs(usAt('threshold_m33_verify'))} ms** |
 | heap peak | **78 KB** |
 | proof size | 11.9 KB |
-| security (conjectured) | 123 bit |
+| STARK soundness (conjectured) | 123 bit |
+| Poseidon binding (conjectured) | ~64 bit |
 | trace | 2 columns × 64 rows |
 | heap after | 10 bytes |
+
+<Aside type="caution" title="Two security parameters, not one">
+  The 123-bit number is **STARK soundness**, set by the FRI query count. The circuit also asserts `Poseidon(value, nonce) = commitment` for binding, wich gives **~64-bit Grobner-basis security** at the current `t=2, α=7, 24-full-round` config. Overall security is `min(STARK, Poseidon) = 64 bit`, not 123. The 24-round count was picked deliberately for this range-proof use case (forgery requires guessing a valid `(value, nonce)` pair, not inverting the hash), but it's still a separate parameter and pretending it isn't would be lying. A real 128-bit Poseidon-BabyBear with audited parameters lands as part of the upcoming PQ-Semaphore audit milestone.
+</Aside>
 
 64 FRI queries at blowup=4. Bumping from 11 to 64 queries added 1.2% prove overhead and 14 KB heap while jumping from 21-bit to 123-bit security. Prove time is basically query-invariant because the work is in LDE + FRI folding, not query opening.
 
@@ -114,7 +120,7 @@ N=512 OOMs instantly. Two realistic paths forward:
 
 <CardGrid>
   <Card title="Field-native hash" icon="approve-check-circle">
-    Poseidon or Rescue over BabyBear. A field hash operates directly on field elements, so FRI commitment is all field arithmetic, no byte-oriented compression. Merkle trees shrink, prove time drops, and the 1.4× ISA gap might finally narrow. This is what Plonky3 does. `zkmcu-poseidon-circuit` is the scaffold in the repo already.
+    Poseidon or Rescue over BabyBear. A field hash operates directly on field elements, so FRI commitment is all field arithmetic, no byte-oriented compression. Merkle trees shrink, prove time drops, and the 1.4× ISA gap might finally narrow. This is what Plonky3 does. The existing `zkmcu-poseidon-circuit` crate is BN254 R1CS sizing-only (placeholder MDS, zeroed ARK, marked NOT cryptographically sound in its own docstring) and gets retired during the PQ-Semaphore audit, the field-native BabyBear Poseidon is fresh work in that milestone.
   </Card>
   <Card title="External PSRAM" icon="puzzle">
     The RP2350 supports QSPI-connected PSRAM. The Pico 2 W doesn't have it, but a custom board with 8-16 MB PSRAM lifts the ceiling to N=4096 or beyond. No software changes, just memory. Useful if you need large traces and the QSPI latency hit is acceptable.

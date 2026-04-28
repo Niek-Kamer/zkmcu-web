@@ -3,13 +3,14 @@ title: Deterministic timing
 description: Why STARK verify timing variance dropped from 0.46 % to 0.08 % on the same silicon. The allocator, not the crypto, was the noise source.
 ---
 
-import { Aside, Badge, CardGrid, Card } from '@astrojs/starlight/components';
+import { Aside, CardGrid, Card } from '@astrojs/starlight/components';
+import HeroBadges from '../../components/HeroBadges.astro';
 
-<div class="hero-badges">
-  <Badge text="phase 3.2.x-3.2.z" variant="note" />
-  <Badge text="methodology finding" variant="note" />
-  <Badge text="side-channel adjacent" variant="tip" />
-</div>
+<HeroBadges badges={[
+  { text: 'phase 3.2.x-3.2.z', variant: 'note' },
+  { text: 'methodology finding', variant: 'note' },
+  { text: 'side-channel adjacent', variant: 'tip' },
+]} />
 
 The STARK verify path allocates ~400 `Vec`s internally. Under a general-purpose allocator those allocations produce enough timing jitter to turn an otherwise-deterministic crypto routine into one that's 10× noisier than wich the silicon can actually resolve. This page is how I tracked that down and what it means if you're writing side-channel-sensitive firmware.
 

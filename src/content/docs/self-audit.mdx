@@ -3,15 +3,22 @@ title: Self-audit
 description: No fluff, just the facts. What I checked, what I broke, and why you shouldn't blindly trust me yet. Published as a baseline before a "real" audit.
 ---
 
-import { Aside, Badge } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
+import HeroBadges from '../../components/HeroBadges.astro';
 
-<div class="hero-badges">
-  <Badge text="Self-audit: I wrote it, I reviewed it" variant="caution" />
-  <Badge text="Zero blockers in main" variant="success" />
-  <Badge text="Failures published" variant="tip" />
-</div>
+<HeroBadges badges={[
+  { text: 'Self-audit: I wrote it, I reviewed it', variant: 'caution' },
+  { text: 'Zero blockers in main', variant: 'success' },
+  { text: 'Failures published', variant: 'tip' },
+]} />
 
 Let’s be real: this is a self-audit. I wrote the code and now I’m grading my own homework. In the security world, that’s a "weak claim," and I’m not here to gaslight you. Think of this as an honest baseline: here’s exactly what I looked at, the receipts to prove it, and a list of things I haven't touched yet. If your threat model relies on the stuff I skipped, don't ship this to production.
+
+<Aside type="note" title="On AI use">
+  AI helped me draft prose and review code. It didn't touch the asm, the
+  measurements, or the design calls. Full split on the [AI
+  disclosure](/ai-disclosure/) page.
+</Aside>
 
 ## The TL;DR
 
