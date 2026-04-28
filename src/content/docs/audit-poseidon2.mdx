@@ -1,0 +1,177 @@
+---
+title: Poseidon2 over BabyBear, audit findings
+description: Independent re-derivation of Plonky3's BabyBear Poseidon2 parameters. Round counts, MDS-ness over BabyBear's prime, V-vector subspace trails, plus the one real deviation from the paper that byte-output diff testing actually caught.
+lastUpdated: 2026-04-28
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import HeroBadges from '../../components/HeroBadges.astro';
+
+<HeroBadges badges={[
+  { text: '40 tests, all green', variant: 'success' },
+  { text: '5 findings, 1 deviation caught', variant: 'caution' },
+  { text: 'Independent re-derivation', variant: 'tip' },
+]} />
+
+Yeah so I've been knees-deep in PQ-Semaphore prep work for `zkmcu`. The plan, short version: replace BN254 Groth16 in the existing Semaphore path with a STARK over Poseidon2-`BabyBear` so the whole anonymous identity stack ends up post-quantum on a $5 microcontroller. Wich is cool in theory but means I had to actually trust the hash, and I'm not gonna pretend Poseidon2-`BabyBear` is "just there" when it's not even in the original Poseidon paper.
+
+So I built a tiny audit crate. ~700 lines of pure-`u64` Rust, zero deps for the lib build, Plonky3 as dev-dep only for the diff test. Goal: re-derive everything Plonky3 ships, from scratch, and confirm it matches. Or doesn't.
+
+Spoiler: mostly matches. With one real finding I would not have spotted by reading the paper.
+
+## Why I did this myself
+
+Plonky3 publishes round constants, a V vector for the internal layer, and a "production" Poseidon2 `BabyBear`. Documentation is "trust us, the params come from the paper". Cool, but the paper's reference Table 1 lists `(n=31, t=16, d=5)` and `BabyBear` actually needs `d=7` (since `gcd(5, p-1) = 5` for our prime). So Plonky3's published `R_P=13` for `t=16` is NOT a row in the paper's table. It's something they computed. I wanted to compute it independently and see.
+
+Same story for the MDS matrix and the V vector. Lot's of "the paper says" handwaving. Audit means re-deriving, not re-quoting.
+
+## What I built
+
+Five modules, ~700 LoC total:
+
+```
+crates/zkmcu-poseidon-audit/
+├── round_numbers.rs     port of Horizen's sage param script to Rust
+├── mds.rs               brute-force minor enumeration over F_p
+├── poly.rs              F_p[x] arithmetic primitives
+├── internal_layer.rs    V vector reconstruction from Plonky3 source
+├── subspace_trail.rs    Faddeev-LeVerrier + Rabin's irreducibility
+└── perm.rs              reference Poseidon2 perm in pure u64
+```
+
+Plus `tests/perm_diff.rs` wich runs both Plonky3's perm and ours on the same constants and asserts byte-identical output.
+
+40 tests, runs in ~60ms release. All green.
+
+## Finding 1: round counts ARE the bound minima
+
+Paper section 3.2 has the actual formula:
+
+```
+R_P >= ceil(1.075 * ceil(max{
+    min(kappa, log2(p))/log2(d) + log_d(t) - 5,
+    R_GB
+}))
+```
+
+`R_GB` is a max of four sub-bounds plus a binomial-coefficient check from eprint 2023/537 (the +7.5% margin is the `1.075`). I ported the whole brute-force search from `vendor/poseidon2/poseidon2_rust_params.sage` line-for-line into `round_numbers.rs`, ran it for our params, got:
+
+| Field | t | d | kappa | Our derivation | Plonky3 published | **Match** |
+|---|---:|---:|---:|---:|---:|:-:|
+| `BabyBear` | 16 | 7 | 128 | R_P=13 | 13 | **✓** |
+| `BabyBear` | 24 | 7 | 128 | R_P=21 | 21 | **✓** |
+| `BabyBear` | 32 | 7 | 128 | R_P=30 | 30 | **✓** |
+| Goldilocks | 8 | 7 | 128 | R_P=22 | paper Table 1 → 22 | **✓** |
+
+So Plonky3's `BabyBear` round counts ARE the cryptanalytic-bound minima. Verified in 150 lines of Rust, no Plonky3 dep needed for the derivation itself.
+
+## Finding 2: M_4 IS MDS over BabyBear despite p < 2^31
+
+Paper page 12 says M_4 is MDS for `p > 2^31`. `BabyBear`'s prime is `15·2^27 + 1 = 2_013_265_921` wich is LESS than `2^31`. So the paper's claim does not directly cover us.
+
+Plonky3 ofcourse used M_4 anyway. I needed to know wich:
+
+- a) they verified separately
+- b) they missed it
+- c) the paper's claim is conservative and M_4 happens to be MDS over `BabyBear` too
+
+I brute-forced all 69 minors of M_4 (16 + 36 + 16 + 1 across `k=1,2,3,4`) and checked each determinant in `F_2_013_265_921`. All 69 non-zero. So it's option (c). Paper claim was conservative.
+
+This is the kind of thing where if I'd just trusted Plonky3 I'd be fine, but only because they got it right. If they'd been wrong it would have been a real bug. Worth checking.
+
+## Finding 3: the V vector reconstructs
+
+Plonky3's internal-layer V vector for `BabyBear` `t=16`:
+
+```
+V = [-2, 1, 2, 1/2, 3, 4, -1/2, -3, -4, 1/2^8, 1/4, 1/8, 1/2^27,
+     -1/2^8, -1/16, -1/2^27]
+```
+
+Wich is in their source as a comment, but the actual code does halvings and `div_2exp_u64` ops. I reconstructed each element from first principles (modular halving over `F_p`, repeated for `1/2^k`) and confirmed:
+
+- `2 · V[3] ≡ 1` (V[3] is 1/2)
+- `2^8 · V[9] ≡ 1` (V[9] is 1/2^8)
+- `2^27 · V[12] ≡ 1`
+- The negative entries give `≡ -1`
+- All 6 fractional entries pass
+
+Then `M_I = J + diag(V)` builds clean. No zero entries on the diagonal (would have been a real finding if any `V[i] + 1 ≡ 0`, but none are).
+
+## Finding 4: subspace-trail condition holds
+
+This is the load-bearing one. Section 5.3 of the paper says:
+
+> if the minimal polynomials of M_I, M_I², M_I³, ... are irreducible and of maximum degree, no arbitrarily long subspace trail exists
+
+So I needed to compute the minimal poly of `M_I^k` for `k = 1..R_P = 13` and check each is irreducible of degree 16.
+
+Reduction: if char poly of M is irreducible of degree n, then min poly = char poly (since min divides char and char is irreducible), so both irreducible AND max degree. So I just check char polys.
+
+Built it bottom-up:
+
+- `poly.rs`: `F_p[x]` arithmetic (add, sub, mul, mod, gcd, pow_mod), 250 lines
+- `subspace_trail.rs`: matrix ops, char poly via Faddeev-LeVerrier, Rabin's irreducibility test
+
+For `n=16`, prime factors of 16 are just `{2}`, so Rabin checks `x^(p^16) ≡ x` and `gcd(f, x^(p^8) - x) = 1`. Whole thing runs in ~50ms release.
+
+Result: for `k=1..13`, char poly of `M_I^k` is irreducible over `BabyBear`. Every single one. Plonky3's V vector satisfies the paper's sufficient condition for arbitrary-trail prevention.
+
+Sanity tests on top: Cayley-Hamilton holds (`χ_M(M) = 0`), Rabin recognizes a known reducible quadratic `(x-1)(x-2)`, Rabin recognizes an irreducible `x² - non_residue` quadratic where I compute the non-residue at runtime via Euler. All green.
+
+## Finding 5: Plonky3 swaps the paper's M_4 (real finding)
+
+This one I would not have caught without the diff test.
+
+Paper section 5.1 says M_4 is:
+
+```
+[5 7 1 3]
+[4 6 1 1]
+[1 3 5 7]
+[1 1 4 6]
+```
+
+I implemented our reference perm with that, ran the diff test against Plonky3's perm with the same published RC constants, expected byte-identical output.
+
+5 out of 6 tests failed. Outputs completely different. fuck.
+
+Spent like 20 minutes thinking my code was wrong, eventually traced it to `vendor/Plonky3/poseidon2/src/external.rs`. Plonky3 has TWO M_4 matrices defined:
+
+- `apply_hl_mat4` is the paper's M_4 (Horizen Labs version), 8 additions per row
+- `apply_mat4` is `circ(2, 3, 1, 1)`, 5 additions per row
+
+And `MDSMat4` (the type used by `Poseidon2BabyBear` in production) maps to `apply_mat4`, NOT the paper's. From the comment on line 52:
+
+> "It turns out we can find a 4x4 matrix which is more efficient than the above."
+
+So Plonky3 substitutes its own optimized circulant for the paper's M_4. Both MDS over `BabyBear` (verified for both in `mds.rs`), but **byte outputs differ from any paper-spec implementation**. Anyone who reads the paper, builds Poseidon2-`BabyBear` themselves, and runs against Plonky3 test vectors WILL get a mismatch.
+
+This is exactly the thing audit-by-association would have missed. Plonky3 documents it (the comment on line 52 is right there) but the README doesn't flag it as a deviation. If I'd just copied Plonky3's V vector and round constants and called it a day, my circuit would have given different commitments than every other Plonky3 user, and I would not have known why.
+
+Switched our perm to use `circ(2, 3, 1, 1)`. Diff test went from 5/6 failing to 6/6 passing. Byte-identical with Plonky3 across:
+
+- All zeros input
+- All ones input
+- Sequential `0..15`
+- Plonky3's own test-vector input
+- Max values `2^31 - 1`
+- Single-bit injectivity (16 perturbations)
+
+<Aside type="caution" title="Worth being on the security page">
+  If you are building Poseidon2-`BabyBear` from the paper directly and trying to interoperate with Plonky3 (or anything Plonky3-derived such as Polygon zkEVM, Reth, the broader Plonky3 ecosystem), use `circ(2, 3, 1, 1)` for the inner 4×4, NOT the paper's `M_4`. Both are MDS over `BabyBear`, but only the Plonky3 variant gives byte-compatible output.
+</Aside>
+
+## So is it secure
+
+Both M_4 variants are MDS over `BabyBear`. Plonky3's optimized version satisfies the paper's structural requirements. Round counts are the bound minima, verified independently. V vector satisfies the subspace-trail condition. So yes, Plonky3's `BabyBear` Poseidon2 IS sound, just not literally the paper's spec.
+
+Net: Plonky3 vindicated on findings 1, 2, 3, 4. Finding 5 is a "this is documented but easy to miss" gotcha.
+
+## What this enables
+
+The audit lands as the foundation for [PQ-Semaphore on RP2350](/roadmap/). Now I can wire the verified Poseidon2-`BabyBear` into a STARK Merkle membership circuit and replace the BN254 Groth16 path on the [Semaphore page](/semaphore/) with an actually post-quantum identity stack. Sub-second prove on a $5 microcontroller is the goal, we'll see when I bench it.
+
+If you want to look at the audit crate itself, source is at [`crates/zkmcu-poseidon-audit/`](https://github.com/Niek-Kamer/zkmcu/tree/main/crates/zkmcu-poseidon-audit). Pure-`u64` math, no big deps, runs in 60ms release. PRs welcome if you find my Rabin's-test or Faddeev-LeVerrier code is dumb somewhere.
+
+Or am I just pure evil for not trusting Plonky3 in the first place. 🤷

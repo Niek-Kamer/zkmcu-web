@@ -1,0 +1,52 @@
+---
+title: AI disclosure
+description: What AI helped me write, what it didn't touch, and how the numbers stay honest regardless.
+lastUpdated: 2026-04-28
+---
+
+import HeroBadges from '../../components/HeroBadges.astro';
+
+<HeroBadges badges={[
+  { text: 'AI-assisted prose, human numbers', variant: 'caution' },
+  { text: 'Every benchmark from real silicon', variant: 'success' },
+]} />
+
+Yeah I use AI. Mostly Claude (Opus 4.x), sometimes Sonnet for cheap edits. Pretending I don't would be dishonest and you'd probably figure it out anyway, so here's the actual split of what it touched and what it didn't.
+
+## What AI helped with
+
+- Drafting first passes of long-form prose (architecture, threat-model writeups) wich I then edit.
+- Code review on Rust PRs, mostly catching `unwrap()` slippage and clippy noise.
+- Brainstorming experiments: BabyBear vs Goldilocks, Poseidon depth sweep, cross-ISA comparisons. Way more productive with a rubber duck that knows STARK params.
+- Boring typing: Astro components, sidebar entries, TOML loaders. The kind of stuff where doing it from scratch is just busywork.
+
+## What AI did not touch
+
+- **The UMAAL inline asm.** Wrote that myself after reading the ARMv8-M reference manual. Asm suggestions from AI at this level are mostly wrong, I checked.
+- **The benchmark numbers.** Every result lives in `benchmarks/runs/<date>-<slug>/result.toml`, written by firmware running on a real Pico over a real USB cable. AI never produced a millisecond figure.
+- **Design calls.** RP2350 as target, SRAM placement, Goldilocks over BabyBear, stopping Poseidon depth opt at sub-1ms delta. Human decisions on real data.
+- **Negative-result calls.** When BabyBear landed at +66 % slower than expected, choosing to publish that as a finding instead of burying it was mine.
+- **The postmortems.** Real bugs I chased. AI sometimes cleans the prose, never invents the bug.
+
+## How the numbers stay honest
+
+The pipeline:
+
+1. Compile on dev machine.
+2. `scp` to the Pi 5.
+3. Manual BOOTSEL reset, no auto-reset trick.
+4. `picotool load`, firmware runs the bench, prints over USB serial.
+5. `dd if=/dev/ttyACM0 bs=1 count=N` captures.
+6. Parse to `result.toml`, commit.
+
+No AI step in that chain. Number looks wrong? `git blame` the TOML file, the run that produced it is right there.
+
+## Models
+
+Claude Opus 4.x for most work. Claude Sonnet sometimes for cheap edits where the heavy model is overkill. No other vendors. Not on principle, just hadn't needed to swap.
+
+## Why bother
+
+There's a class of project that publishes AI-generated benchmarks pretending a human ran them. That poisons the well for everyone doing this properly. Easier to just be upfront.
+
+If a number doesn't reproduce, open a [GitHub issue](https://github.com/Niek-Kamer/zkmcu/issues).

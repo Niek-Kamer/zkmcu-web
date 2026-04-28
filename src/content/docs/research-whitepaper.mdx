@@ -1,0 +1,45 @@
+---
+title: Whitepaper
+description: The canonical zkmcu paper. Threat models, system architecture, measurements, security analysis. Written in Typst, compiles to PDF.
+lastUpdated: 2026-04-28
+---
+
+import HeroBadges from '../../components/HeroBadges.astro';
+
+<HeroBadges badges={[
+  { text: 'Living document', variant: 'note' },
+  { text: 'Pre-print', variant: 'caution' },
+]} />
+
+The canonical zkmcu paper. Pulls together the [prior-art survey](/research-prior-art/), [audit](/audit-poseidon2/), [security model](/security/), [self-audit](/self-audit/), and on-silicon measurements into one citable document. Pre-print, not submitted to a venue yet, plan is RWC or USENIX once Phase 6 (PQ-Semaphore) lands.
+
+## What's in it
+
+- **Threat model.** Who's attacking, what they control, what zkmcu defends against. Goes deeper than the [security page](/security/).
+- **System architecture.** Three verifier crates (BN254 / BLS12-381 / STARK), shared parser shape, allocator strategy, the bump-allocator and TLSF allocator deltas, firmware bench harness.
+- **Measurements.** Every published number with measurement methodology, hardware setup, build flags. The [benchmarks page](/benchmarks/) is the digest, the whitepaper is the full data.
+- **Security analysis.** Adversarial test methodology, parser hardening, the canonical-encoding strictness (BN254 `Fr < r`, BLS12-381 padding validation), DoS hardening. Cross-references the [self-audit](/self-audit/) and [Poseidon2 audit](/audit-poseidon2/).
+- **Limitations.** Honest list of what isn't validated yet (constant-time formal proof, side-channel via power / EM, upstream subgroup math).
+- **Roadmap context.** Why phases 6-9 ([Roadmap](/roadmap/)) follow the order they do.
+
+## Source
+
+Written in Typst, compiles via `just docs` to PDF. Living document, so when measurements change the paper gets re-compiled rather than a new version published.
+
+- [Whitepaper source on GitHub](https://github.com/Niek-Kamer/zkmcu/blob/main/research/whitepaper/main.typ)
+
+## Citing this work
+
+If you're using zkmcu's measurements in academic work or another paper:
+
+```bibtex
+@misc{kamer2026zkmcu,
+  title = {zkmcu: no\_std Rust ZK verifiers for hardware-wallet-class microcontrollers},
+  author = {Kamer, Niek},
+  year = {2026},
+  howpublished = {\url{https://zkmcu.dev}},
+  note = {Living whitepaper, see https://github.com/Niek-Kamer/zkmcu/blob/main/research/whitepaper/main.typ}
+}
+```
+
+Reviewers / program chairs interested earlier, [contact](/contact/).

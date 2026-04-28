@@ -1,0 +1,52 @@
+---
+title: Prior-art survey
+description: Living survey of existing no_std ZK verifier work on microcontrollers. Updated as I find things, intentionally honest about what's already out there.
+lastUpdated: 2026-04-28
+---
+
+import HeroBadges from '../../components/HeroBadges.astro';
+
+<HeroBadges badges={[
+  { text: 'Living document', variant: 'note' },
+  { text: 'Last updated 2026-04', variant: 'tip' },
+]} />
+
+Before zkmcu started I spent a week looking for existing `no_std` Rust ZK verifiers on Cortex-M, RISC-V, and similar 32-bit microcontrollers. The honest finding: **none for Groth16 on `no_std` Rust at the time of writing**, a couple for STARKs in non-Rust languages, lot's of academic prototypes that never got open-sourced.
+
+## What's in scope
+
+- ZK verifiers (not provers) running on resource-constrained hardware (typically &lt; 256 KB RAM, &lt; 1 MB flash)
+- Open-source, reproducible builds preferred, closed-source vendors mentioned but lower-weight
+- Both classical (Groth16, PlonK) and post-quantum (STARKs, lattice-based) covered
+- Embedded means embedded, not "we ran it on a Raspberry Pi 4 with 4 GB RAM"
+
+## Out of scope
+
+- Cloud-side or phone-side verifiers. There's already a lot of work there.
+- Synthetic benchmarks without actual silicon measurements
+- Marketing pages with no code
+
+## Source
+
+The full survey, with citations, comparisons against zkmcu's measured numbers, and table of MCU classes / RAM tiers / proof systems, lives in the repo as a Typst document. Compiled PDF goes here when published.
+
+- [Living survey source on GitHub](https://github.com/Niek-Kamer/zkmcu/blob/main/research/prior-art/main.typ)
+
+## Headline finding
+
+For `no_std` Rust Groth16 verifiers on Cortex-M33 specifically, **the niche was open** when zkmcu's first benchmark landed in April 2026. zkmcu's BN254 verifier at 988 ms baseline (later 641 ms after UMAAL asm) was the first published number I could find. If you know of an earlier one, [tell me](/contact/) and I'll update the survey.
+
+For STARK verifiers, winterfell-based work existed on host but **no `no_std` port targeting microcontroller-class memory** was published. zkmcu's 75 ms STARK verify was, as far as I can find, the first.
+
+For BLS12-381 verifiers on embedded, Filecoin and Ethereum sync-committee proofs run on phones / servers but no MCU-class implementation existed in `no_std` Rust.
+
+## Related work worth citing
+
+These are the closest neighbours I found, none of them directly competing:
+
+- **Filecoin's Forest** has BLS12-381 verifiers but targets servers, not embedded
+- **Aleo's snarkOS** is general-purpose, runs on desktops and up
+- **Risc0** has STARK provers but the verifiers are also desktop-class
+- **Plonky3** (vendored as a reference in [the audit](/audit-poseidon2/)) is library-tier infrastructure, not deployed-on-hardware
+
+Working on something in this niche? Ping the [contact page](/contact/).

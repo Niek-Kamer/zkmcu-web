@@ -1,0 +1,58 @@
+---
+title: Roadmap
+description: Where zkmcu has been, where it's going, and how confident I am about each step. Honest dates, no PR fluff.
+lastUpdated: 2026-04-28
+---
+
+import HeroBadges from '../../components/HeroBadges.astro';
+
+<HeroBadges badges={[
+  { text: 'Solo build, NL', variant: 'note' },
+  { text: 'Updated 2026-04-28', variant: 'tip' },
+]} />
+
+Dates are rough, I might be wrong about all of them.
+
+## Shipped
+
+| Phase | Done | Headline |
+|---|---|---|
+| **1** | Apr 21 | First on-silicon BN254 Groth16 verify, **988 ms baseline** on Cortex-M33 |
+| **2** | Apr 23 | UMAAL inline asm + SRAM placement, **988 → 641 ms** (35% drop on the same chip) |
+| **2.5** | Apr 22 | BLS12-381 Groth16, **same 128 KB SRAM tier**, 7.7 s on M33 |
+| **3** | Apr 23 | First STARK verify on $5 silicon, Goldilocks Fibonacci AIR, **74.7 ms at 95-bit** |
+| **3.3** | Apr 24-25 | `BabyBear × Quartic` cross-ISA experiment, collapsed RV32/M33 gap from 1.51× to **1.04×** |
+| **4** | Apr 26 | First on-device STARK **prover**, feasibility at ~32-bit security |
+| **5** | Apr 26 | STARK prover at production security, **148 ms BabyBear+Quartic, 95-bit conjectured** |
+| **5.5** | Apr 28 | Independent [Poseidon2-`BabyBear` audit](/audit-poseidon2/), 5 findings, 40 tests green |
+
+## In progress
+
+| Phase | Target | What it is |
+|---|---|---|
+| **6** | May-Jun 2026 | **PQ-Semaphore on RP2350.** Replace BN254 Groth16 in the Semaphore path with STARK + audited Poseidon2-`BabyBear` Merkle membership circuit. Anonymous identity, post-quantum, on-device. |
+
+## Planned
+
+| Phase | Target | What it is |
+|---|---|---|
+| **7** | Jun-Jul 2026 | **Recursive Groth16 wrapper.** Off-chain wrap the on-device STARK in a BN254 Groth16 proof so it can be verified on Ethereum at ~250k gas instead of ~5M. Restores Ethereum-native compatibility for the PQ identity stack. |
+| **8** | Q3-Q4 2026 | **Hardware productization.** Custom enclosure, USB-C/BLE, manufacturing partner, FCC/CE certification. Move from "Pico 2 W on a desk" to "shippable device with a price tag". |
+| **9** | Q4 2026 / Q1 2027 | **Dilithium attestation track.** Separate non-anonymous flow for device attestation use cases (firmware signing, secure boot). NIST-blessed PQ signature primitive on the same hardware. |
+
+## What's NOT on the roadmap
+
+- **Generic SNARK platform** wich is what every other ZK project ships. zkmcu stays focused on edge devices and identity. Plenty of people doing the platform thing better resourced than me.
+- **L1 chain.** Not building one. Not interested. Too crowded, too capital-intensive, too long timeline.
+- **Token launch before product.** Tokens before there's a working economic loop is how you end up in a courtroom.
+- **General-purpose Rust ZK library.** Arkworks and Plonky3 cover that surface, I'm not duplicating.
+
+## Risks I'm watching
+
+- **Plonky3 API churn.** They're pre-1.0 and refactor frequently. Each refactor potentially breaks our diff tests. Mitigation: vendor the version we audit against, upgrade on a deliberate cadence.
+- **Hardware supply chain (RP2350 specifically).** Pico 2 W availability has been stable, but if Raspberry Pi changes pricing or pulls the chip, the whole project pivots to alternative MCUs. Mitigation: keep the codebase MCU-agnostic where possible.
+- **Recursive proof aggregation centralization.** Phase 7 wrapper needs to run somewhere. If the only good wrapper service is run by one company, that's a failure mode. Mitigation: make the wrapper code public and easy to self-host.
+
+## Want to help
+
+Open issues / PRs at [github.com/Niek-Kamer/zkmcu](https://github.com/Niek-Kamer/zkmcu). Grant programs, investors, design partners, all on the [contact page](/contact/).

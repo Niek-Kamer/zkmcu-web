@@ -1,0 +1,50 @@
+---
+title: Findings and postmortems
+description: The learning trail. Every bug found, every benchmark surprise, every "wait that shouldn't work" moment, written down so it doesn't bite anyone twice.
+lastUpdated: 2026-04-28
+---
+
+import HeroBadges from '../../components/HeroBadges.astro';
+
+<HeroBadges badges={[
+  { text: '7 published, more coming', variant: 'note' },
+  { text: 'Honest failure log', variant: 'caution' },
+]} />
+
+Every bug, every regression, every benchmark surprise. I write them down so when I make the same class of mistake six months from now I can grep the trail instead of wasting another day. The two parser-related ones (`stark-unbounded-vec-alloc`, `stark-cross-field-panic`) were caught and killed within 24 hours, both in the same week.
+
+## The postmortems
+
+Each entry below links to the full Typst source on GitHub. PDFs compile via `just docs`.
+
+### 2026-04-23, [no-umaal-codegen](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-23-no-umaal-codegen.typ)
+
+Cortex-M33 has the `UMAAL` instruction (unsigned multiply-accumulate-accumulate long) wich is exactly the shape Montgomery reduction needs. LLVM did not emit it from straight Rust, so the original 988 ms baseline was leaving performance on the floor. Hand-wrote the asm path, dropped to 641 ms. Rule extracted: don't trust the compiler to find dual-accumulator instructions, it doesn't.
+
+### 2026-04-23, [opt-level-3-regression](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-23-opt-level-3-regression.typ)
+
+`opt-level = 3` was actually slower than `opt-level = 2` for the BN254 verify on M33. Counter-intuitive. Tracked to inlining causing register-allocation pressure that spilled to the stack. Rule extracted: always benchmark `opt-level = 2` and `s` alongside `3`, and trust measured numbers over compiler-default lore.
+
+### 2026-04-24, [stark-cross-field-panic](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-24-stark-cross-field-panic.typ)
+
+Tried to verify a STARK proof generated over Goldilocks using a verifier expecting `BabyBear`, expected a clean `Err(WrongField)`. Instead got an arithmetic panic from inside winterfell's deserializer, wich is the wrong failure mode for adversarial input. Patched in the `vendor/winterfell` fork. Rule extracted: panics on bad input are bugs, full stop, no matter how unrealistic the input looks.
+
+### 2026-04-24, [stark-unbounded-vec-alloc](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-24-stark-unbounded-vec-alloc.typ)
+
+`parse_vk` accepted untrusted `num_ic` into a `Vec::with_capacity` call, wich for `num_ic = u32::MAX` triggered a 412 GB allocation request. SIGABRT on host, instant reset on the Pico. Classic DoS via untrusted-length parsing. Patched with an upfront buffer-length sanity check and a cap. Rule extracted: every `with_capacity(n)` where `n` came from untrusted bytes is a potential DoS vector, no exceptions.
+
+### 2026-04-24, [karatsuba-isa-asymmetric](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-24-karatsuba-isa-asymmetric.typ)
+
+Karatsuba multiplication helped on RISC-V Hazard3 but actively HURT on Cortex-M33. Reason: M33 has UMAAL wich is faster than the equivalent shift-and-add chain Karatsuba reduces multiplications to. Karatsuba assumes you don't have a fast wide-multiply primitive; M33 has one. Rule extracted: cross-ISA optimizations are not free transfers, instruction-set asymmetries flip the answer.
+
+### 2026-04-24, [bench-core-babybear-speedup](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-24-bench-core-babybear-speedup.typ)
+
+Switching the benchmark harness from Goldilocks to `BabyBear` made measurements appear ~2× faster. Looked too good. Tracked to the harness re-using a stale Goldilocks state vector while running `BabyBear` arithmetic, wich essentially short-circuited part of the work. Rule extracted: when a benchmark gets surprisingly faster, suspect the harness before suspecting the optimization.
+
+### 2026-04-24, [babybear-quartic-regresses](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-24-babybear-quartic-regresses.typ)
+
+Hypothesis: `BabyBear × Quartic` would be faster than `Goldilocks × Quadratic` at the same security target. Reality: it was 66% slower on M33. The 31-bit field saved on memory but field arithmetic costs dominated, and the quartic extension multiplied that cost by 4 instead of 2. Negative result published as a real finding because most projects would have buried it. Rule extracted: smaller field doesn't always win, the extension degree multiplier matters.
+
+## Coming up
+
+More postmortems landing as PQ-Semaphore work runs through May-June 2026. The [Poseidon2 audit](/audit-poseidon2/) already turned up one Plonky3 deviation from the paper, that lives on the audit page rather than here since it's a deliberate design choice and not a bug.
