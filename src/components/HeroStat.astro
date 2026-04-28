@@ -1,0 +1,31 @@
+---
+// The big-number callout used on the homepage and elsewhere. Renders the
+// existing `.hero-stat` markup as a single component, optional href makes
+// it a clickable card that links to the corresponding detail page.
+//
+// Usage in MDX (slot is the body prose):
+//   <HeroStat
+//     value={`${fmtMs(usAt('bn254_m33_semaphore'))} ms`}
+//     label="Real Semaphore v4 proof, verified on a $7 MCU"
+//     href="/semaphore/"
+//   >
+//     BN254 Groth16, 4 public inputs, the actual Ethereum-Semaphore...
+//   </HeroStat>
+
+interface Props {
+	value: string;
+	label: string;
+	href?: string;
+}
+
+const { value, label, href } = Astro.props;
+const Tag = href ? 'a' : 'div';
+---
+
+<Tag class="hero-stat" href={href}>
+	<div class="hero-stat__num">{value}</div>
+	<div class="hero-stat__label">{label}</div>
+	<div class="hero-stat__body">
+		<slot />
+	</div>
+</Tag>

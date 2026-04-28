@@ -1,0 +1,38 @@
+---
+// Discrete-finding card used for audit results, postmortem indices, and
+// anywhere we want to surface a labelled bite of "this is what we found"
+// content. The severity-tinted left border gives visual scannability for
+// a list of findings without making them as loud as Asides.
+//
+// Usage in MDX (slot is the body prose):
+//   <Finding severity="positive" title="Round counts ARE the bound minima">
+//     Plonky3's published values match our independent re-derivation
+//     byte-for-byte.
+//   </Finding>
+
+type Severity = 'positive' | 'warning' | 'deviation' | 'neutral';
+
+interface Props {
+	title: string;
+	severity?: Severity;
+}
+
+const { title, severity = 'neutral' } = Astro.props;
+
+const severityLabel: Record<Severity, string> = {
+	positive: 'Confirmed',
+	warning: 'Open',
+	deviation: 'Deviation',
+	neutral: 'Note',
+};
+---
+
+<div class:list={['finding', `finding--${severity}`]}>
+	<div class="finding__header">
+		<div class="finding__title">{title}</div>
+		<span class="finding__status">{severityLabel[severity]}</span>
+	</div>
+	<div class="finding__body">
+		<slot />
+	</div>
+</div>

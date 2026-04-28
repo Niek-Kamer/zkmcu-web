@@ -1,0 +1,33 @@
+---
+// Wrapper for the hero-badges row that appears at the top of nearly every
+// doc page. Pass an array of `{ text, variant }` objects, the component
+// renders the container div + Starlight Badge for each one. Centralises
+// the markup so adding / removing / styling badges happens in one place.
+//
+// Usage in MDX:
+//   <HeroBadges badges={[
+//     { text: 'no_std Rust', variant: 'note' },
+//     { text: '128 KB SRAM tier', variant: 'tip' },
+//   ]} />
+
+import { Badge } from '@astrojs/starlight/components';
+
+type BadgeVariant = 'note' | 'tip' | 'caution' | 'success' | 'danger';
+
+interface Props {
+	badges: {
+		text: string;
+		variant?: BadgeVariant;
+	}[];
+}
+
+const { badges } = Astro.props;
+---
+
+<div class="hero-badges">
+	{
+		badges.map(({ text, variant = 'note' }) => (
+			<Badge text={text} variant={variant} />
+		))
+	}
+</div>

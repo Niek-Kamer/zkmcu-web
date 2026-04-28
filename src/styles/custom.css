@@ -880,3 +880,95 @@ header[data-astro-header] {
 	letter-spacing: 0.01em;
 	font-size: 1.25rem;
 }
+
+/* ---- 17. Finding cards. Used on audit pages and postmortem indices.
+ *
+ * Status-tinted left border gives scannability for a list of findings
+ * without making them as loud as Asides. Right-aligned status pill picks
+ * up the same accent so each card is self-coherent. */
+
+.sl-markdown-content .finding {
+	display: block;
+	margin-block: 1.5rem;
+	padding: 1.25rem 1.5rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-left: 4px solid var(--sl-color-accent);
+	border-radius: 8px;
+	background: var(--sl-color-gray-7);
+}
+
+.sl-markdown-content .finding__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 1rem;
+	margin-bottom: 0.65rem;
+	flex-wrap: wrap;
+}
+
+.sl-markdown-content .finding__title {
+	font-size: 1.05rem;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	line-height: 1.3;
+	color: var(--sl-color-white);
+}
+
+.sl-markdown-content .finding__status {
+	font-family: var(--sl-font-system-mono);
+	font-size: 0.68rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	padding: 0.2em 0.6em;
+	border-radius: 3px;
+	background: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
+	color: var(--sl-color-accent-high);
+	white-space: nowrap;
+}
+
+:root[data-theme='light'] .sl-markdown-content .finding__status {
+	background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+	color: var(--sl-color-accent);
+}
+
+.sl-markdown-content .finding__body > :first-child {
+	margin-top: 0;
+}
+
+.sl-markdown-content .finding__body > :last-child {
+	margin-bottom: 0;
+}
+
+/* Status variants. `positive` and `deviation` reuse the accent peach since
+ * peach already implies "noteworthy" in the palette. `warning` shifts to
+ * a warm amber via accent-low so it reads as "still open" without
+ * fighting the rest of the page. `neutral` keeps the default. */
+
+.sl-markdown-content .finding--positive {
+	border-left-color: var(--sl-color-accent);
+}
+
+.sl-markdown-content .finding--deviation {
+	border-left-color: var(--sl-color-accent-high);
+}
+
+.sl-markdown-content .finding--warning {
+	border-left-color: #d97706;
+}
+
+:root[data-theme='light'] .sl-markdown-content .finding--warning {
+	border-left-color: #b45309;
+}
+
+.sl-markdown-content .finding--warning .finding__status {
+	background: color-mix(in srgb, #d97706 18%, transparent);
+	color: #fbbf24;
+}
+
+:root[data-theme='light']
+	.sl-markdown-content
+	.finding--warning
+	.finding__status {
+	background: color-mix(in srgb, #b45309 14%, transparent);
+	color: #b45309;
+}
