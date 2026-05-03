@@ -153,6 +153,66 @@ export const BENCHMARKS = {
 		slug: '2026-04-22-rv32-bls12-baseline',
 		bench: 'pairing',
 	},
+
+	// PQ-Semaphore depth-10 STARK — five-phase 128-bit security plan.
+	// Each phase rebuilds the verifier with one knob changed and re-measures
+	// on both ISAs. Numbers feed the dated writeup at
+	// /research/2026-04-30-pq-semaphore-128bit/. Phase E.1 is the headline.
+	//
+	// Phase 0 — baseline (Phase B vector + 16-bit grinding, ~95-bit conj.).
+	pq_sem_m33_p0: {
+		slug: '2026-04-29-m33-pq-semaphore',
+		bench: 'pq_semaphore_verify',
+	},
+	pq_sem_rv32_p0: {
+		slug: '2026-04-29-rv32-pq-semaphore',
+		bench: 'pq_semaphore_verify',
+	},
+	// Phase A — grinding 16+16 → 32 bits PoW, +1 query (~111-bit conj.).
+	pq_sem_m33_pa: {
+		slug: '2026-04-29-m33-pq-semaphore-grind32',
+		bench: 'pq_semaphore_verify',
+	},
+	pq_sem_rv32_pa: {
+		slug: '2026-04-29-rv32-pq-semaphore-grind32',
+		bench: 'pq_semaphore_verify',
+	},
+	// Phase B — DIGEST_WIDTH 4 → 6 (Poseidon2 floor 124 → 186 bits).
+	pq_sem_m33_pb: {
+		slug: '2026-04-29-m33-pq-semaphore-d6',
+		bench: 'pq_semaphore_verify',
+	},
+	pq_sem_rv32_pb: {
+		slug: '2026-04-29-rv32-pq-semaphore-d6',
+		bench: 'pq_semaphore_verify',
+	},
+	// Phase C — two-stage early-exit; honest verify cost.
+	pq_sem_m33_pc: {
+		slug: '2026-04-29-m33-pq-semaphore-reject',
+		bench: 'honest_verify',
+	},
+	pq_sem_rv32_pc: {
+		slug: '2026-04-29-rv32-pq-semaphore-reject',
+		bench: 'honest_verify',
+	},
+	// Phase D — Goldilocks × Quadratic alternative (rejected, +87/+113%).
+	pq_sem_m33_pd: {
+		slug: '2026-04-29-m33-pq-semaphore-gl',
+		bench: 'pq_semaphore_gl_verify',
+	},
+	pq_sem_rv32_pd: {
+		slug: '2026-04-29-rv32-pq-semaphore-gl',
+		bench: 'pq_semaphore_gl_verify',
+	},
+	// Phase E.1 — stacked Poseidon2 + Blake3 dual-hash (headline, 127+ PQ).
+	pq_sem_m33_pe1: {
+		slug: '2026-04-30-m33-pq-semaphore-dual',
+		bench: 'pq_semaphore_dual_verify',
+	},
+	pq_sem_rv32_pe1: {
+		slug: '2026-04-30-rv32-pq-semaphore-dual',
+		bench: 'pq_semaphore_dual_verify',
+	},
 } as const;
 
 export type BenchKey = keyof typeof BENCHMARKS;

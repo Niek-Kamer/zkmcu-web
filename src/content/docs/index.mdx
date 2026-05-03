@@ -1,18 +1,17 @@
 ---
 title: zkmcu
-description: no_std Rust verifiers for Cortex-M and RISC-V microcontrollers. BN254 Groth16, BLS12-381 Groth16, and winterfell STARK, all under 128 KB SRAM on a $7 Pico 2 W.
+description: "no_std Rust ZK verifiers for microcontrollers. Current focus: post-quantum Semaphore-style identity proofs with dual-hash STARK composition on a $7 RP2350, plus the existing BN254 Groth16, BLS12-381 Groth16, and winterfell STARK family in under 128 KB SRAM."
 hero:
   tagline: |
-    Three no_std Rust verifiers for microcontrollers. BN254 Groth16, BLS12-381 Groth16, and winterfell STARK.
-    All three fit under 128 KB SRAM on a $7 Pico 2 W. Ofcourse nobody had published this before, so I had to find out myself.
+    no_std Rust ZK verifiers for microcontrollers. Current focus: a post-quantum Semaphore-style identity proof, verified on a $7 Pico 2 W in 1.6 s under dual-hash (Poseidon2 + Blake3) STARK composition. The earlier BN254 / BLS12 / winterfell-STARK family still ships under 128 KB SRAM. Ofcourse nobody had published this before, so I had to find out myself.
   actions:
-    - text: Get started
-      link: /getting-started/
+    - text: Read the writeup
+      link: /research/2026-04-30-pq-semaphore-128bit/
       icon: right-arrow
       variant: primary
-    - text: STARK prover in 48 ms
-      link: /stark-prover/
-      icon: rocket
+    - text: Getting started
+      link: /getting-started/
+      icon: open-book
       variant: secondary
     - text: View on GitHub
       link: https://github.com/Niek-Kamer/zkmcu
@@ -28,6 +27,7 @@ import { fmtMs } from '../../lib/format';
 
 <HeroBadges badges={[
   { text: 'no_std Rust', variant: 'note' },
+  { text: 'post-quantum, dual-hash', variant: 'success' },
   { text: '128 KB SRAM tier', variant: 'tip' },
 ]} />
 
@@ -50,25 +50,25 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
 ## Measured on silicon
 
 <HeroStat
-  value={`${fmtMs(usAt('bn254_m33_semaphore'))} ms`}
-  label="Real Semaphore v4 proof, verified on a $7 MCU"
-  href="/semaphore/"
+  value={`${fmtMs(usAt('pq_sem_m33_pe1'))} ms`}
+  label="Dual-hash PQ-Semaphore depth-10 verify, Cortex-M33"
+  href="/research/2026-04-30-pq-semaphore-128bit/"
 >
-  BN254 Groth16, 4 public inputs, the actual Ethereum-Semaphore trusted setup. Same VK wich the `0x08` precompile accepts. No simplifications, no off-device preprocess, no cheating.
+  Two independent FRI proofs over the same statement: Poseidon2-`BabyBear`-16 (audited round constants) and Blake3 1.8. Both must accept. Soundness composes across the two hash families, so a cryptanalytic surprise on either doesn't collapse the verifier. Hazard3 RV32 lands at {fmtMs(usAt('pq_sem_rv32_pe1'))} ms on the same die.
 </HeroStat>
 
 <CardGrid>
-  <Card title={`${fmtMs(usAt('threshold_m33_prove'))} ms prove`} icon="approve-check-circle">
-    **First STARK prover on bare metal.** Threshold-check circuit — prove `value < threshold` — N=64, BabyBear+Quartic, 64 KB heap peak. FibRace needs 3 GB for this. [More](/stark-prover/)
+  <Card title={`${fmtMs(usAt('bn254_m33_semaphore'))} ms BN254 Semaphore`} icon="approve-check-circle">
+    **Classical baseline.** Real Ethereum-Semaphore v4 depth-10 Groth16 proof, the same VK that the `0x08` precompile accepts. Verifies on the same $7 MCU. [More](/semaphore/)
   </Card>
-  <Card title={`${fmtMs(usAt('stark_m33_tlsf'))} ms`} icon="rocket">
-    **STARK verify at 95-bit security.** Winterfell Fibonacci AIR over Goldilocks, quadratic extension, TlsfHeap allocator. Variance sits at 0.08 %, wich is basically the silicon noise floor. [More](/stark/)
+  <Card title={`${fmtMs(usAt('threshold_m33_prove'))} ms STARK prove`} icon="rocket">
+    **First STARK prover on bare metal.** Threshold-check circuit, prove `value < threshold`, N=64, BabyBear+Quartic, 64 KB heap peak. FibRace needs 3 GB for the same predicate. [More](/stark-prover/)
   </Card>
-  <Card title={`${fmtMs(usAt('bls12_m33'))} ms`} icon="puzzle">
-    BLS12-381 Groth16, same $7 silicon. First public `no_std` BLS12 verifier on Cortex-M, as far as I can find. If anyone knows of an earlier one, tell me and I'll update.
+  <Card title={`${fmtMs(usAt('stark_m33_tlsf'))} ms STARK verify`} icon="puzzle">
+    **Deterministic to silicon noise floor.** Winterfell Fibonacci AIR over Goldilocks, quadratic extension, TlsfHeap allocator. Variance sits at 0.08 %. [More](/stark/)
   </Card>
-  <Card title="≈ 97 KB" icon="document">
-    Total RAM during verify, for all three families. Fits the 128 KB SRAM tier wich is what actual hardware-wallet silicon (ST33, STM32F405, nRF52) ships with.
+  <Card title={`${fmtMs(usAt('bls12_m33'))} ms BLS12-381`} icon="document">
+    Sibling Groth16 verifier on the same $7 silicon. First public `no_std` BLS12-381 verifier on Cortex-M, as far as I can find. If anyone knows earlier work, tell me and I'll update.
   </Card>
 </CardGrid>
 
@@ -115,8 +115,8 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
 ## Where to next
 
 <CardGrid>
-  <Card title="STARK verify in 75 ms" icon="rocket">
-    Winterfell Fibonacci AIR, 95-bit conjectured security, 100 KB RAM. [The numbers](/stark/)
+  <Card title="PQ-Semaphore writeup" icon="rocket">
+    The six-phase 128-bit security build. Each phase tested one knob, predicted the cost, then either confirmed or rejected the hypothesis on real silicon. One phase rejected its own hypothesis; the final phase landed exactly on its predicted floor. [Read it](/research/2026-04-30-pq-semaphore-128bit/)
   </Card>
   <Card title="Semaphore real-world proof" icon="approve-check-circle">
     Production Ethereum-Semaphore VK, snarkjs-generated proof, verified on a $7 MCU in 1.18 s. No simplifications. [See it](/semaphore/)
@@ -125,6 +125,6 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
     How picking the right allocator knocked timing variance from 0.45 % to 0.08 %. Matters a lot if you care about side channels. [The methodology](/determinism/)
   </Card>
   <Card title="Benchmarks" icon="bars">
-    Numbers straight from the silicon. Three verifier families, both cores, three allocators. [Full data](/benchmarks/)
+    Numbers straight from the silicon. Four verifier families, both cores, three allocators. [Full data](/benchmarks/)
   </Card>
 </CardGrid>

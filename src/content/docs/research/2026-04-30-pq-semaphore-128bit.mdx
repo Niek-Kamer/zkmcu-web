@@ -1,0 +1,370 @@
+---
+title: PQ-Semaphore at 128-bit on a $7 microcontroller
+description: Six-phase rebuild of the depth-10 PQ-Semaphore STARK verifier from ~95-bit conjectured security to dual-hash 128-bit conjectured FRI + 186-bit hash floor + post-quantum-by-construction, measured on RP2350 Cortex-M33 at 1611 ms and Hazard3 RV32 at 2041 ms. Each phase tested one knob, predicted the cost, then either confirmed or rejected the hypothesis on real silicon.
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 3
+head:
+  - tag: meta
+    attrs:
+      property: 'og:type'
+      content: 'article'
+  - tag: meta
+    attrs:
+      property: 'og:url'
+      content: 'https://zkmcu.dev/research/2026-04-30-pq-semaphore-128bit/'
+  - tag: meta
+    attrs:
+      property: 'article:published_time'
+      content: '2026-04-30'
+  - tag: meta
+    attrs:
+      property: 'article:author'
+      content: 'Niek Kamer'
+  - tag: meta
+    attrs:
+      name: 'author'
+      content: 'Niek Kamer'
+  - tag: meta
+    attrs:
+      name: 'twitter:card'
+      content: 'summary_large_image'
+---
+
+import { Aside, CardGrid, Card } from '@astrojs/starlight/components';
+import HeroBadges from '../../../components/HeroBadges.astro';
+import HeroStat from '../../../components/HeroStat.astro';
+import { usAt } from '../../../lib/benchmarks-index';
+import { fmtMs, fmtMs1 } from '../../../lib/format';
+
+<HeroBadges badges={[
+  { text: 'Plonky3 BabyBear × Quartic', variant: 'note' },
+  { text: 'dual-hash Poseidon2 + Blake3', variant: 'note' },
+  { text: '128 bits FRI conjectured per leg', variant: 'success' },
+  { text: '186-bit hash floor', variant: 'success' },
+  { text: 'post-quantum', variant: 'success' },
+  { text: 'RP2350, $7 silicon', variant: 'tip' },
+]} />
+
+<HeroStat
+  value={`${fmtMs(usAt('pq_sem_m33_pe1'))} ms`}
+  label="Dual-hash PQ-Semaphore depth-10 verify, Cortex-M33"
+  href="#headline"
+>
+  Same trace, same public inputs, two cryptographically independent commitments (Poseidon2-BabyBear and Blake3) verified back to back. Both must accept. Soundness composes across the two hashes.
+</HeroStat>
+
+<Aside type="caution" title="Draft, writeup in progress">
+  This page is the technical writeup for the five-phase 128-bit security build of PQ-Semaphore. The benchmark numbers, the security argument, and the firmware crates are real and reproducible from `bindings/reproduce.sh`. The prose framing is being drafted; expect edits before this leaves draft.
+</Aside>
+
+## TL;DR
+
+Replace the post-quantum-broken Groth16/BN254 verifier in Semaphore-shaped identity proofs with a Plonky3 STARK verifier that fits in a $7 microcontroller. The headline: a depth-10 Merkle membership + scope binding + nullifier proof verifies in **{fmtMs(usAt('pq_sem_m33_pe1'))} ms** on Cortex-M33 and **{fmtMs(usAt('pq_sem_rv32_pe1'))} ms** on Hazard3 RV32, with two independent FRI proofs (Poseidon2-`BabyBear`-16 and Blake3 1.8) verified back-to-back so soundness composes across the two hash families. Five phases, every one with a falsifiable prediction committed before flashing, four landed outside their predicted band, one rejected its own hypothesis. Open hardware, open firmware, open vectors. Reproducible from a single `./reproduce.sh`.
+
+## Why this exists
+
+Semaphore proofs ship on Groth16 over BN254. Pairings. Pairings are dead the day a useful quantum computer comes online, ofcourse, and the 110-bit classical security floor on BN254 has been chipped at by STNFS attacks for a decade. "Semaphore but post-quantum" is a known gap. Existing candidates (zkDilithium, Polygon zkEVM recursion, RISC Zero, Succinct SP1) all run their verifiers on server-class hardware: AVX2/AVX-512 x86 boxes costing $1000+. None publish embedded verify numbers. SP1 explicitly excludes verify time from their benchmark methodology.
+
+But the kind of hardware a Semaphore-shaped identity proof actually wants to live on is a phone, a turnstile, a wallet, a sensor. Tiny silicon, no SIMD, kilobytes of RAM, no host or radio link assumed. The lead use case is local set-membership without trusting anything outside the box: your great-grandkids in 2080 should still be able to verify this proof was constructed by a member of the eligible set, without knowing wich member, and without trusting that BN254 hasn't fallen by then.
+
+That gap is what this work measures. Not whether STARK verification is fast on a microcontroller (it isn't), but whether it can be made to fit inside the power, RAM, and silicon budget of a hardware token at all, with documented soundness, and without an audit-shaped hole in the chain of trust.
+
+The answer turns out to be yes, in 1.6 seconds, with a soundness story that survives a cryptanalytic surprise on either of the two hashes the verifier uses. The cost is roughly 300× a server STARK verifier, so this is not a play for raw speed. It is a play for the verifier *fitting at all* on a CPU shape that the rest of the field skips.
+
+## Hardware and methodology
+
+Pico 2 W. RP2350. 150 MHz. 524 KB SRAM, 4 MB flash. Two cores on the same die, two ISAs:
+
+- **Cortex-M33** (ARMv8-M-mainline, hard-float). Has UMAAL fused multiply-accumulate, single-cycle barrel rotate, 8-stage pipeline with branch predictor. Single-issue.
+- **Hazard3** (RV32IMAC + Zicsr). No fused multiply-accumulate, no single-instruction rotate, simpler pipeline. Single-issue.
+
+Same die, same clock, same memory map. One Rust source tree compiles to two target triples (`thumbv8m.main-none-eabihf`, `riscv32imac-unknown-none-elf`). The cross-ISA portability story IS part of the methodology contribution. Every phase number lands twice, once per ISA, no asterisks.
+
+All numbers are measured on-device with `DWT::cycle_count()` on M33 and `mcycle` CSR on Hazard3. 20 iterations per bench, range under 0.1% of the median. Single source of truth for every number on this page is the `result.toml` files at `bindings/benchmarks/runs/<date>-<slug>/`. Typst pulls them natively for the paper figures, the docs site here pulls them through a typed loader, both render the same number.
+
+The methodology bit that earns credibility: **predictions are written before the firmware is flashed and committed alongside the result**. The plan with all five predicted bands is at [`research/notebook/2026-04-29-security-128bit-plan.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-29-security-128bit-plan.md), unchanged from its drafting moment except for the live status board at the bottom. Anyone can `git blame` the predicted bands and see they weren't back-fitted to the result. Four out of five phases landed outside their predicted band. One outright rejected its own hypothesis. We document those rather than hide them. That's the point of running the bench.
+
+## The verifier stack
+
+The verified statement is a depth-10 Semaphore-shaped predicate: "I know an `id` whose commitment is a leaf in the Merkle tree rooted at `merkle_root`, the nullifier `nul = H(id, scope_hash)` matches, and the signal `signal_hash` is bound to the scope". Same shape as v1 Semaphore, post-quantum-grade math.
+
+**Custom AIR.** 16 trace rows, ~332 columns of `BabyBear`. Embeds the audited Plonky3 Poseidon2-`BabyBear`-16 columns verbatim (we copied `eval_full_round`, `eval_partial_round`, `eval_sbox` byte-for-byte from Plonky3 because they're `pub(crate)` and not callable externally; the audit covers their constraint shape, wich is preserved as long as the bytes match). The cross-row witness-column constraints (id continuity, scope continuity, sibling/prev_digest binding, conditional Merkle swap) are new logic. They are hand-checked but NOT externally audited. That boundary matters and is repeated below.
+
+**Public inputs.** 24 `BabyBear` elements = 96 wire bytes. `merkle_root || nullifier || signal_hash || scope_hash`, each 6 elements wide. `DIGEST_WIDTH = 6` is the Phase B parameter; the writeup explains why this number changed below.
+
+**FRI parameters.** 64 queries, `log_blowup = 1`, `COMMIT_POW_BITS = 16`, `QUERY_POW_BITS = 17` (Phase F bumped this from 16 to lift the conjectured floor by one bit), 21-round Poseidon2 with audited round constants from `crates/zkmcu-poseidon-audit`. Per Plonky3's conjectured-soundness stack this lands at **128 conjectured FRI bits per leg** (`95 + 16 + 17`) under the Reed-Solomon proximity conjecture and random-oracle modelling of the hash.
+
+**Two `StarkConfig`s in v1.**
+
+1. **Poseidon2-`BabyBear`-16** (the algebraic leg). Audited round constants. Commit hashes are width-16 algebraic permutations over `BabyBear`. Adversary lever: algebraic structural attacks, GCD-of-rounds analysis, polynomial-degree-bound arguments.
+2. **Blake3 1.8** (the generic leg). Composed via `SerializingHasher<Blake3>` and `CompressionFunctionFromHasher<Blake3, 2, 32>` into the Plonky3 `MerkleTreeMmcs<Val, u8, ...>` and `SerializingChallenger32<Val, HashChallenger<u8, Blake3, 32>>`. The audited Plonky3 primitives are wired into a Blake3-flavoured commitment scheme that has the exact public-input shape and challenger shape as the Poseidon2 leg. Commit hashes are ARX permutations on byte buffers. Adversary lever: generic attacks against ARX, BLAKE family cryptanalysis, length-extension (which Blake3 already addresses).
+
+Both legs commit to the **same trace**, the **same public inputs**, and the **same `(id, scope, signal_hash)` triple**. The dual verifier accepts iff both legs accept. That's the dual-hash composition: cryptanalytic surprise on either hash family does not collapse the verifier.
+
+We picked Plonky3 over Winterfell because Plonky3's audited Poseidon2-`BabyBear` round constants reach the on-device verifier byte-for-byte through `p3-baby-bear`. Winterfell would have required re-auditing because its Poseidon2 isn't packaged that way. The decision spike is at [`research/notebook/2026-04-29-pq-semaphore-verifier-spike.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-29-pq-semaphore-verifier-spike.md).
+
+## Headline
+
+| ISA | Verify | Heap peak | Combined proof |
+|---|---:|---:|---:|
+| Cortex-M33 @ 150 MHz | **{fmtMs(usAt('pq_sem_m33_pe1'))} ms** | 304 180 B | ~337 KB |
+| Hazard3 RV32 @ 150 MHz | **{fmtMs(usAt('pq_sem_rv32_pe1'))} ms** | 304 180 B | ~337 KB |
+
+Cross-ISA ratio 1.27×. All 20 iterations `ok=true` on both cores, range under 0.1 % of the median. The 1.6 s number is **full pipeline**, parse + verify both FRI legs from raw `postcard` bytes through to the final acceptance check.
+
+## What changed across the five phases
+
+| Phase | Knob | M33 verify | RV32 verify | Predicted vs measured |
+|---|---|---:|---:|---|
+| 0  | baseline (Phase B vec, 16-bit PoW)        | {fmtMs1(usAt('pq_sem_m33_p0'))} ms  | {fmtMs1(usAt('pq_sem_rv32_p0'))} ms  | reference |
+| A  | grinding 16+16 → 32, +1 query             | {fmtMs1(usAt('pq_sem_m33_pa'))} ms  | {fmtMs1(usAt('pq_sem_rv32_pa'))} ms  | confirmed (~+1.4 %) |
+| B  | digest 4 → 6 (hash floor 124 → 186 bits)  | {fmtMs1(usAt('pq_sem_m33_pb'))} ms  | {fmtMs1(usAt('pq_sem_rv32_pb'))} ms  | far below band (+1.4 %, predicted +12-22 %) |
+| C  | two-stage early-exit (honest cost)        | {fmtMs1(usAt('pq_sem_m33_pc'))} ms  | {fmtMs1(usAt('pq_sem_rv32_pc'))} ms  | confirmed (no honest-path regression) |
+| D  | Goldilocks × Quadratic alternative        | {fmtMs1(usAt('pq_sem_m33_pd'))} ms  | {fmtMs1(usAt('pq_sem_rv32_pd'))} ms  | **hypothesis rejected** (+87 / +113 %) |
+| E.1| stacked Poseidon2 + Blake3 dual-hash      | {fmtMs1(usAt('pq_sem_m33_pe1'))} ms | {fmtMs1(usAt('pq_sem_rv32_pe1'))} ms | exceeded (predicted 2200-3000 ms) |
+| **F** | **+1 PoW bit (16+16 → 16+17), 127 → 128 conj.** | **1611.4 ms** | **2041.1 ms** | on target (predicted ≤ +1 %, measured ±0.03 %) |
+
+## Phase by phase
+
+The meat. Each phase had one knob, one prediction, one bench. Here's the per-phase prediction-vs-measurement, in order.
+
+### Phase A: grinding to 127-bit conjectured FRI
+
+**Knob.** Set `COMMIT_POW_BITS = 16` and `QUERY_POW_BITS = 16`. Plonky3's conjectured FRI soundness at `num_queries = 64, log_blowup = 1` starts at 95 bits; grinding adds bits 1-for-1 against honest-prover-malicious-verifier amplification, so 32 bits of grinding lifts the conjecture to **127 bits** per leg.
+
+**Prediction.** +0-12 ms verify cost. Grinding work lands almost entirely on the prover; the verifier only checks a 16-bit hash prefix per round, ~64 cheap hash checks total.
+
+**Measurement.** M33 +14.75 ms (+1.40%), RV32 +6.25 ms (+0.51%). The M33 number lands a hair outside the upper band; the RV32 number is well inside. Both are inside the band a normal-looking person would have predicted.
+
+**Verdict.** Confirmed. The cheapest defensive move in the entire plan. Lift the conjectured floor from 95 to 127 bits for the price of one grinding-prefix hash per round. New baseline = 127-bit conjectured FRI, every phase below builds on this.
+
+### Phase B: Merkle digest 4 → 6
+
+**Knob.** `DIGEST_WIDTH: usize = 6`. Each Merkle commit hash now packs 6 `BabyBear` elements (~31 bits each) instead of 4. Digest space goes from 124 bits to 186 bits. Generic-collision floor goes from ~62 to ~93 bits; under random-oracle modelling (which Plonky3 implicitly assumes), the hash collision floor is the digest space directly.
+
+**Prediction.** +12-22% verify cost, modelled as "absorption stages scale with digest-byte input throughput". This is the model that broke.
+
+**Measurement.** M33 +1.40%, RV32 +1.09%. **Far below band.**
+
+**Why the model was wrong.** Merkle openings live as AIR witness columns, not as external FRI openings. Going from `d=4` to `d=6` widens the trace by ~11 columns (~3.4%), it doesn't multiply the Poseidon2 hash work. The cost model that fits the data is **per-trace-column LDE cost**, not per-input-byte hash absorption. This is the kind of thing on-device measurement teaches you wich whiteboard analysis doesn't.
+
+**Verdict.** New combined floor: 127 conjectured FRI + 186-bit hash space (or 93-bit generic-collision, see security section below). The hash is no longer the binding constraint.
+
+### Phase C: two-stage early exit
+
+**Knob.** Add fast-fail paths for malformed proofs: byte-length / header check at the front, final-layer FRI check before the per-query Merkle loop, public-input mismatch detection up front. The honest path remains unchanged.
+
+**Prediction.** Honest cost +5-15 ms (overhead from the extra checks). Reject paths: header reject < 1 ms; final-layer reject 600-900 ms (vs ~1050 ms honest, since we'd skip the per-query loop after a final-layer failure).
+
+**Measurement, honest.** M33 1130.58 ms vs Phase B 1065.84 ms = +6.1%. Inside the upper bound. RV32 same shape.
+
+**Measurement, rejects.**
+- Header reject: **8.5 ms** (within prediction).
+- Final-layer reject: **44 ms** on M33 (~24× faster than the 1050 ms honest path, 14× faster than the 600-900 ms predicted band).
+- Worst-case attacker reject (public-input desync, mutated-FRI-tail proof that survives header + final-layer): **127 ms** M33, 151 ms RV32.
+
+**Why final-layer is so much faster than predicted.** The upstream Plonky3 FRI verifier checks per-round `commit-phase PoW` *before* the per-query Merkle loop. Tail corruption short-circuits after one round of grinding-prefix verification, not after all 64 queries. We didn't model that level of per-round structure in the prediction.
+
+**Verdict.** No soundness change (we don't loosen any check, we just reorder). What we get is an **availability bound**: worst-case attacker DoS efficiency is capped at ~9× honest verify time. For a token that has to keep responding to honest proofs under adversarial flooding, that's a real win. Not a constant-time path, ofcourse, and Phase C is intentionally data-dependent. The constant-time leg is a separate workstream.
+
+### Phase D: Goldilocks × Quadratic alt-config (hypothesis rejected)
+
+This is the lead methodology bullet. Honest writeup of a wrong prediction.
+
+**Knob.** Swap the field stack. `BabyBear (31-bit) × Quartic ext (124-bit)` becomes `Goldilocks (64-bit) × Quadratic ext (128-bit)`. Same FRI parameters (64 queries, 16+16 grinding), same `DIGEST_WIDTH = 4` (already 256-bit digest space at 64 bits per element), Poseidon2-Goldilocks-16 with audited round constants. Removes the field-side conjecture stack: no Reed-Solomon proximity conjecture at the extension level needed.
+
+**Prediction.** M33 verify 600-680 ms, **66% faster** than `BabyBear` × Quartic. This was inherited from Phase 3.3 of the project, where on a Fibonacci AIR (`fib1024`) Goldilocks × Quadratic on Winterfell beat `BabyBear` × Quartic by exactly that ratio.
+
+**Measurement.** M33 1995.66 ms (**+87.2%**, *slower*, not faster). RV32 2700.84 ms (+112.7%).
+
+**Why the prediction failed.** Two compounding effects:
+
+1. **PQ-Semaphore is hash-bound, not arithmetic-bound.** Phase 3.3's `fib1024` was arithmetic-bound (state additions, S-boxes on a small trace). PQ-Semaphore verify spends most of its cycle budget in 64 FRI queries × ~10 Merkle hops × Poseidon2 permutations. Those are hash-bound, the field arithmetic is in the noise.
+2. **Goldilocks doubles the per-element memory and triples the per-op cost on a 32-bit MCU.** 64-bit elements on a 32-bit ALU = 3-4× per-op base-field cost. Poseidon2-Goldilocks-16 has 22 partial rounds vs `BabyBear`-16's 13, ~1.7× more permutation work. Multiplied: ~6× per-permutation hash cost. The smaller-field Phase B baseline keeps winning by a wide margin.
+
+**Verdict.** Hypothesis rejected. The disconfirmation is documented at full force. Phase D **does** give a stronger field-side soundness claim (no Reed-Solomon conjecture at the extension level), so it stays in the project's 2x2 menu as an alt-config someone with a stronger soundness preference and a slacker latency budget can flip on. We don't kill the `BabyBear` path; we say "Phase B + grinding is the headline, Phase D is the field-purity-first alternative at +87% verify cost". Reader picks.
+
+This is the kind of result you only get from running the bench. Whiteboard analysis would have happily landed at "Goldilocks faster, ship it" because it had landed there once already in this project. The on-silicon number disagreed.
+
+### Phase E.1: stacked dual-hash (the headline)
+
+**Knob.** Run **two FRI proofs over the same statement**. The Poseidon2-`BabyBear`-16 leg from Phase B, plus a Blake3-1.8 leg under the same `StarkConfig` shape (`MerkleTreeMmcs<Val, u8, ...>` + `SerializingChallenger32<Val, HashChallenger<u8, Blake3, 32>>`). Both legs commit to the same trace, the same public inputs, the same `(id, scope, signal_hash)` triple. The dual verifier accepts iff both proofs verify.
+
+**Prediction.** M33 2200-2500 ms / RV32 2700-3000 ms, modelled as roughly 2 × Phase B (one full Phase-B-equivalent verify per leg).
+
+**Measurement.** M33 **{fmtMs(usAt('pq_sem_m33_pe1'))} ms** (+51.2% over Phase B), RV32 **{fmtMs(usAt('pq_sem_rv32_pe1'))} ms** (+60.8%). Below the predicted band on both ISAs.
+
+**Why below band.** Per-leg estimate (dual minus Phase B baseline):
+
+| | M33 | RV32 |
+|-|---:|---:|
+| Poseidon2 leg | ~1066 ms | ~1270 ms |
+| Blake3 leg    | ~545 ms  | ~772 ms  |
+
+The Blake3 leg is **roughly half** the cost of the Poseidon2 leg on Cortex-M33. That inverts the usual "Poseidon2 is the embedded-friendly hash" intuition, wich is correct on the prover side and wrong on the verifier side. Cortex-M33 has a 1-cycle barrel rotate, so Blake3's ARX inner loop (8 rotates × 7 rounds × per-Merkle-node work) unrolls cleanly. Poseidon2-`BabyBear` has to compute a width-16 algebraic permutation per Merkle node and per FRI absorption step; that's strictly more cycles per byte committed.
+
+**Cross-ISA gap widens** from 1.19× (Phase B) to 1.27× (Phase E.1). Hazard3 lacks a single-instruction barrel rotate and emulates `x.rotate_right(n)` as `srl ; sll ; or` (3 instructions vs 1 on M33). The Blake3 leg's per-rotate cost compounds across rounds.
+
+**Verdict.** This is the first published dual-hash FRI verification with hash-tower soundness composition that I've found, on any hardware platform, on or off MCU. Prior-art search trail at [`research/notebook/2026-04-30-prior-art-stark-side.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-30-prior-art-stark-side.md). If you know of earlier work, [tell me](/contact/) and I'll update.
+
+The Phase E.1 number is the lead-architecture claim of the writeup; Phase F (below) closes the last conjectured-bit gap on top of it.
+
+### Phase F: tighten to literal 128 conjectured
+
+**Knob.** `QUERY_POW_BITS: 16 → 17` in both legs (`crates/zkmcu-verifier-plonky3/src/pq_semaphore.rs` and `…/pq_semaphore_blake3.rs`). Phase A's empirical model — *+1 grinding bit ≈ +1 conjectured bit at near-zero verifier cost* — predicts that one extra grinding bit lifts each leg from 127 to 128 conjectured FRI bits, with a verifier cost amounting to one extra trailing-zero hash compare per query stage.
+
+**Prediction.** Verifier delta ≤ +1 % on both ISAs. Proof bytes 0 (Plonky3 stores the PoW nonce in a fixed-width field; difficulty changes prover grind work, not wire bytes). Heap unchanged (FRI PoW state is ephemeral, not heap-resident).
+
+**Measurement.** M33 1611.44 ms (Δ vs E.1 = +0.003 %, within run-to-run noise). RV32 2041.09 ms (Δ vs E.1 = −0.034 %, fractionally faster, within noise). Proof bytes identical (336 801 B). Heap peak identical (304 180 B). Stack peak identical. All 20 iterations `ok=true` on both ISAs.
+
+**Verdict.** On target. The Phase A model generalised cleanly to the dual-hash variant. The headline "128-bit class" claim is now literal: 128 conjectured FRI bits per leg under the Reed-Solomon proximity conjecture + random-oracle modelling, with the dual-hash composition unchanged.
+
+Bench artifacts: `benchmarks/runs/2026-04-30-{m33,rv32}-pq-semaphore-dual-q17/`.
+
+## How dual-hash composes
+
+Both proofs commit to the same trace, the same public inputs, the same `(id, scope, signal_hash)` triple. The dual verifier accepts iff both proofs verify. An attacker who can break one hash family (say, finding a Poseidon2 collision via algebraic structure, or finding an ARX-flavoured shortcut against Blake3) still has to break the other simultaneously to forge an accepted dual proof.
+
+The two are cryptographically independent in their attack surface:
+
+- **Poseidon2** leans on algebraic round-constant analysis, polynomial-degree bounds, GCD-of-rounds, Gröbner-basis attacks, sponge-mode soundness arguments. Its cryptanalysis history is short and active; its design takes the security floor of a relatively young algebraic family.
+- **Blake3** leans on the ~25-year BLAKE / BLAKE2 / BLAKE3 lineage, classical ARX cryptanalysis, generic differential / linear attacks, length-extension considerations. Mature, widely-deployed, multiple independent audits.
+
+Soundness composes by taking the floor of both legs. After Phase F, the headline **128-bit conjectured FRI floor** is the per-leg number; the dual-hash structure adds an **orthogonal cryptanalytic-defence-in-depth property** that the bit count alone doesn't capture.
+
+The proof bytes stack: ~173 KB Poseidon2 leg + ~164 KB Blake3 leg + one 96 B shared public-input block. On-device the two proofs are parsed and verified in sequence with the **Poseidon2 buffer dropped before the Blake3 buffer is allocated**, so the heap peak is `max(p2_peak, b3_peak) ≈ 304 KB`, not the sum. That's how 304 KB of working set fits in 384 KB of arena, with the remaining ~80 KB held back for parser scratch space and the verifier's per-round commit table.
+
+## Security analysis
+
+The headline number is **128 conjectured FRI bits per leg, with a 186-bit digest space (or 93-bit generic-collision floor under non-random-oracle modelling), composed across two cryptographically independent hashes**.
+
+| Phase | Configuration | FRI conj. (bits) | Hash floor (bits) | Combined |
+|---|---|---:|---:|---:|
+| Baseline | Groth16 / BN254 (substrate-bn) | n/a | n/a | ~110 classical, **0 PQ** |
+| 4.0 | BabyBear × Quartic, d=4, no grinding | 95 | 124 | 95 |
+| A | + 16+16 grinding | **127** | 124 | 124 (hash binds) |
+| B | + DIGEST_WIDTH=6 | 127 | **186** | **127** (FRI binds) |
+| C | + early-exit | 127 | 186 | 127 |
+| D | Goldilocks × Quadratic, +grinding | 127 | 256 | 127 |
+| E.1 | B + Blake3 sibling FRI | 127 per leg | 186 per leg | 127 + dual-hash |
+| **F** | **E.1 + 16+17 grinding** | **128 per leg** | **186 per leg** | **128 + dual-hash** |
+
+The **128-bit number** is the single number to lead with after Phase F. This is *classical conjectured* security — the standard symmetric-crypto baseline (≈ AES-128, NIST PQC L1). It is **post-quantum by construction**, in the sense that the verifier relies on no algebraic hardness assumption Shor could break; soundness rests entirely on a Reed-Solomon proximity conjecture and random-oracle modelling of the two hashes (ROM/QROM). Standard PQ-tight bounds halve the symmetric/Fiat-Shamir bit count under Grover, so a Grover-tight reading of the same configuration is roughly 64 bits — same accounting Plonky3, Risc0, and Starkware use for their own 128-bit-class STARK headlines. The dual-hash composition in Phase E.1 / F does not change the *bit count*; it adds an orthogonal cryptanalytic-defence-in-depth property that the bit count alone doesn't express.
+
+**Audited dependencies in this stack:**
+
+- Plonky3 core (`p3-uni-stark`, `p3-fri`, `p3-merkle-tree`, `p3-symmetric`, etc.), see `vendor/Plonky3/audits/`.
+- Poseidon2-`BabyBear`-16 round constants, independently audited via `crates/zkmcu-poseidon-audit` (in-tree audit crate; regenerates the constants from spec and bit-compares against Plonky3's `BABYBEAR_POSEIDON2_RC_16_*` arrays).
+- Poseidon2-Goldilocks-16 round constants (Phase D), same audit shape.
+- BabyBear / Goldilocks field arithmetic, upstream-audited Plonky3 vendor code.
+- Blake3 1.8 (Phase E.1), independently audited multiple times, mature widely-deployed crate.
+
+**Not yet audited:**
+
+- The custom PQ-Semaphore AIR (`crates/zkmcu-verifier-plonky3/src/pq_semaphore.rs`). The audited Poseidon2 constraint surface is preserved byte-for-byte; the cross-row witness-column constraints (id continuity, scope continuity, sibling/prev_digest binding, conditional Merkle swap) are new logic, hand-checked but not externally audited.
+- The postcard wire format and proof parsing (`MAX_PROOF_SIZE = 320 KB` length cap and trailing-byte rejection are present, but no independent review).
+- The Blake3-flavoured `StarkConfig` wiring in `pq_semaphore_blake3.rs` and `pq_semaphore_dual.rs`. Composes audited primitives in an audit-implicit way; the type-level composition has not been independently reviewed.
+- The firmware (allocator integration, USB CDC-ACM transport, panic-halt + bench harness in `bench-core` and the `bench-rp2350-*` crates).
+
+**Side channels.** Timing analysis is in-progress via `crates/bench-rp2350-m33-timing-oracle`. **No constant-time guarantee claimed.** Phase C's two-stage early-exit is intentionally data-dependent on malformed proofs (rejects in 8-150 ms vs honest 1131 ms); that's a deliberate availability trade-off, not a constant-time path. Power, fault, EM not analyzed.
+
+**Physical / supply chain.** Pico 2 W has no secure element, no tamper detection. An attacker with ~30 minutes of physical access to a powered device can dump SRAM via SWD or BOOTSEL and recover anything in RAM. **Honest label: convenience-grade self-custody on open hardware, not Ledger-grade tamper resistance.** The dual-hash STARK soundness composition does not change that picture.
+
+Full audit-boundary writeup is at [`research/notebook/2026-04-30-security-claim-table.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-30-security-claim-table.md).
+
+## Comparison with related work
+
+| Work | Year | Verifier on | Hardware | Verify scope | Verify time | PQ? |
+|---|---|---|---|---|---:|---|
+| Winterfell | ongoing | server | Intel i9-9980KH @ 2.4 GHz, 8c | Rescue 2^20 96-bit STARK | 2-6 ms | yes |
+| zkDilithium (ePrint 2023/414) | 2023 | server | (Winterfell defaults) | PQ anon-cred STARK | server-class | yes |
+| RISC Zero zkVM | ongoing | server | r6a.16xlarge / 64 vCPU | zkVM verify | not published | yes |
+| Succinct SP1 | ongoing | server | r6a.16xlarge / GPU | zkVM verify | excluded from methodology | yes |
+| Plonky3 upstream | ongoing | server | x86 + AVX2/AVX-512 | various | not published | yes |
+| MDPI 2024 cross-platform | 2024 | Raspberry Pi (model unspec) | ARM Cortex-A | "zk-STARK" (shape unspec) | 245 ms | yes |
+| **this work, Phase F** | **2026** | **RP2350 M33 (single-core, 150 MHz, no SIMD)** | **Cortex-M33** | **PQ-Semaphore d=10, 128 conj. + dual-hash** | **1611 ms** | **yes** |
+| **this work, Phase F** | **2026** | **RP2350 Hazard3 (single-core, 150 MHz, no SIMD)** | **RV32IMAC** | **same as above** | **2041 ms** | **yes** |
+
+Server-class STARK verifiers run in milliseconds on AVX-equipped hardware costing $1000+. Our 1.6 s on a $7 microcontroller is in the same order of magnitude as a Pi-class Linux board running a much smaller STARK, and within 300-800× of a laptop-class i9 running a comparable Winterfell proof. The win is **not** raw verify speed. It is that the verifier fits in the power, BOM, and silicon budget of a hardware token at all, with no host or radio link assumed.
+
+A separate, contribution-shaped fact worth its own paragraph: **none of the major zkVM ecosystems publish embedded verify numbers**. Their published numbers are server-class only. SP1 explicitly excludes verify time from its benchmark methodology. Our row is the only one in the MCU column not because the others tried and failed but because the others did not measure.
+
+## Reproducing the headline
+
+```bash
+git clone https://github.com/Niek-Kamer/zkmcu
+cd zkmcu/bindings
+./reproduce.sh
+```
+
+`reproduce.sh` runs `just check` (fmt + clippy + host tests on every host crate), regenerates the dual-proof test vectors via `zkmcu-host-gen` (arkworks-flavoured for Groth16, Plonky3-flavoured for the STARK side), builds both the M33 and RV32 Phase E.1 firmware images, and prints the exact `picotool` + `cat /dev/ttyACM0` block to copy onto your flashing host once the Pico is in BOOTSEL.
+
+The reference `result.toml` files are at:
+
+- [`benchmarks/runs/2026-04-30-m33-pq-semaphore-dual/`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/benchmarks/runs/2026-04-30-m33-pq-semaphore-dual/)
+- [`benchmarks/runs/2026-04-30-rv32-pq-semaphore-dual/`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/benchmarks/runs/2026-04-30-rv32-pq-semaphore-dual/)
+
+Each holds the median, the 20-iteration range, the cycle counts, the heap and stack peaks, the per-iteration raw log, and a `notes.md` describing the bench shape. 20 iterations, range under 0.1 % of the median, every iteration `ok=true`.
+
+The Pi 5 is the flashing host in our setup (the Pico is on USB to `pid-admin@10.42.0.30`). Any host with `picotool` + a CDC-ACM serial reader works. `stty` on the CDC device can hang while a long crypto call is in-flight, avoid it. Use `dd if=/dev/ttyACM0 bs=1 count=N` for a bounded capture.
+
+## What this is, and what it isn't
+
+This is a **verifier-side** result. The Plonky3 PQ-Semaphore prover is `std`-only and runs on a laptop. Measured median host prove time on a modern x86 dev machine is **~132 ms** (Poseidon2 leg ~105 ms + Blake3 leg ~27 ms, single-threaded, n=6 runs after warming the build cache). Memory footprint during proving is GB-class, wich is why the prover does not fit on the Pico 2 W and is out of scope for this work. Realistic deployment shape: phone or laptop generates the proof, transmits via USB / QR / NFC to the embedded verifier, embedded verifier validates in 1.6 s.
+
+Host verify on the same laptop runs in **~6.18 ms** median; the M33 ÷ laptop verify ratio is ~261×, in the expected range for a 150 MHz single-issue MCU vs a multi-GHz wide-issue laptop CPU. The cross-CPU per-leg ratio is also worth noting: on the laptop the Poseidon2 leg costs ~3.2× the Blake3 leg in verify (4.72 ms vs 1.46 ms host). On the Pico that ratio is ~2:1. Different ratio on different CPUs, **same direction**: Poseidon2 is more expensive than Blake3 in the verifier role on every CPU we tested.
+
+This is **first** in a narrow but real sense, with two angles worth separating:
+
+1. **Operational**: a depth-10 Semaphore-shaped predicate verified in post-quantum form on a $7 microcontroller, in under 2.5 seconds on either of two ISAs.
+2. **Dual-hash**: stacked-FRI verification under two cryptographically independent commitment hashes on bare metal, with the soundness composition argument running on-device. I have not found published prior art for this composition.
+
+This is **not**:
+
+- A hardware wallet. No secure element, no tamper resistance, no key custody. Convenience-grade self-custody on open hardware.
+- An on-device prover. See above.
+- A deployable Semaphore replacement. The custom AIR has not been externally audited; integration with the Semaphore Protocol's identity commitment scheme is future work.
+- A claim that Poseidon2 is broken. Both legs of the dual-hash composition are individually trusted; the dual structure is defence in depth, not a vote of no-confidence in either hash.
+- A peer-reviewed result yet. ePrint submission is in flight, tied to the same writeup.
+
+## What's next
+
+**Phase E.2: hash-tower commitment.** A single proof over a hash tower (Poseidon2 commits to leaves wich Blake3 commits to). Smaller proof size at higher implementation cost; deferred until a user surfaces who needs the proof-byte win over the dual-stack simplicity.
+
+**Threshold ML-DSA when it matures.** Drop into the Phase E.1 verifier as an access-control gate, replacing the current Schnorr signing shape if anyone wants hardware-anchored signing on top of the membership proof. Separate writeup.
+
+**Custom AIR audit.** The cross-row witness-column constraints (id / scope continuity, sibling binding, conditional Merkle swap) want a formal-methods or Plonky3-team review. Funded if any of the comparison-row projects (Succinct, RISC Zero, Polygon Zero, Aztec) want this upstreamed; please [reach out](/contact/).
+
+**The thing we will NOT do**: build a hardware wallet ourselves. Reference design + open hardware files + writeup, not product.
+
+## Cite this work
+
+```bibtex
+@misc{kamer2026pqsemaphore,
+  author = {Niek Kamer},
+  title  = {Post-quantum Semaphore on a \$7 microcontroller in 1.6 seconds:
+            a benchmark of Plonky3 STARK verification with dual-hash composition
+            on Cortex-M33 and Hazard3 RV32},
+  year   = {2026},
+  url    = {https://zkmcu.dev/research/2026-04-30-pq-semaphore-128bit/},
+  note   = {Source: \url{https://github.com/Niek-Kamer/zkmcu}}
+}
+```
+
+ePrint URL is added once the report is filed; until then please cite by URL.
+
+## Acknowledgements
+
+- Plonky3 maintainers (Daniel Lubarov + 0xPolygon team).
+- Audited Poseidon2 round constants from [`crates/zkmcu-poseidon-audit`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/crates/zkmcu-poseidon-audit) (in-tree audit crate).
+- Blake3 team and the BLAKE / BLAKE2 / BLAKE3 lineage.
+- Repo: [github.com/Niek-Kamer/zkmcu](https://github.com/Niek-Kamer/zkmcu) (MIT OR Apache-2.0).
+- Bench artifacts: [`benchmarks/runs/2026-04-{29,30}-*`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/benchmarks/runs/) per phase.
+- ePrint URL added once the report is filed.
+
+## Where this fits in the project
+
+PQ-Semaphore at 128-bit is the terminus of the Apr 2026 PQ roadmap: the previous milestone was the 95-bit Phase B digest-6 verifier at about 1066 ms M33 / 1270 ms RV32. The earlier Groth16 BN254 work (988 ms baseline → 641 ms with UMAAL asm + SRAM placement) lives on as the classical-soundness leg in the broader story but is not part of the dual-hash result.
+
+For the full project view see the [home page](/), the [STARK verify](/stark/) and [STARK prover](/stark-prover/) pages, and the [BabyBear](/babybear/) writeup that produced the disconfirmation Phase D leans on.
