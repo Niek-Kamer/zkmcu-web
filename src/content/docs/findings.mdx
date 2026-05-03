@@ -1,13 +1,13 @@
 ---
 title: Findings and postmortems
 description: The learning trail. Every bug found, every benchmark surprise, every "wait that shouldn't work" moment, written down so it doesn't bite anyone twice.
-lastUpdated: 2026-04-28
+lastUpdated: 2026-05-03
 ---
 
 import HeroBadges from '../../components/HeroBadges.astro';
 
 <HeroBadges badges={[
-  { text: '7 published, more coming', variant: 'note' },
+  { text: '8 published, more coming', variant: 'note' },
   { text: 'Honest failure log', variant: 'caution' },
 ]} />
 
@@ -44,6 +44,10 @@ Switching the benchmark harness from Goldilocks to `BabyBear` made measurements 
 ### 2026-04-24, [babybear-quartic-regresses](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-04-24-babybear-quartic-regresses.typ)
 
 Hypothesis: `BabyBear × Quartic` would be faster than `Goldilocks × Quadratic` at the same security target. Reality: it was 66% slower on M33. The 31-bit field saved on memory but field arithmetic costs dominated, and the quartic extension multiplied that cost by 4 instead of 2. Negative result published as a real finding because most projects would have buried it. Rule extracted: smaller field doesn't always win, the extension degree multiplier matters.
+
+### 2026-05-03, [rtc-verify-closing-m5](https://github.com/Niek-Kamer/zkmcu/blob/main/research/postmortems/2026-05-03-rtc-verify-closing-m5.typ)
+
+First on-silicon ct-reject sweep of the dual-hash CT verifier surfaced a 9.46x wall-clock speedup on `Mutation::M5_public_byte`: 168 ms reject vs 1593 ms honest, while M0–M4 sat within 0.06% of honest. A single bit flip in the public input desynced the Fiat-Shamir transcript and tripped an early-return inside Plonky3's FRI commit-phase Merkle check, before any of the real verification work ran. Boolean-parity host tests passed cleanly the entire time — only the on-silicon timing harness caught it. Closed by vendoring Plonky3 and adding parallel `verify_run_to_completion` entry points across `p3-uni-stark`, `p3-fri`, and `p3-commit` that accumulate data-path failures into a single status flag instead of `?`-propagating the first one. Re-run on M33: M5 lands at 0.99977 of honest, statistically tied with M0–M4. Rule extracted: any code path claiming to be CT needs a *timing* assertion, not just a boolean one.
 
 ## Coming up
 
