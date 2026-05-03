@@ -57,6 +57,30 @@ export default defineConfig({
 				},
 				{ tag: 'link', attrs: { rel: 'manifest', href: '/site.webmanifest' } },
 				{ tag: 'meta', attrs: { name: 'theme-color', content: '#b07348' } },
+				{
+					tag: 'meta',
+					attrs: {
+						property: 'og:image',
+						content: 'https://zkmcu.dev/android-chrome-512x512.png',
+					},
+				},
+				{
+					tag: 'meta',
+					attrs: { property: 'og:site_name', content: 'zkmcu' },
+				},
+				{
+					tag: 'meta',
+					attrs: { name: 'twitter:card', content: 'summary' },
+				},
+				{
+					tag: 'link',
+					attrs: {
+						rel: 'alternate',
+						type: 'application/rss+xml',
+						title: 'zkmcu',
+						href: 'https://zkmcu.dev/rss.xml',
+					},
+				},
 			],
 			social: [
 				{
@@ -109,6 +133,11 @@ export default defineConfig({
 				{
 					label: 'Research',
 					items: [
+						{
+							label: 'PQ-Semaphore at 128-bit (Apr 2026)',
+							link: '/research/2026-04-30-pq-semaphore-128bit/',
+							badge: { text: 'draft', variant: 'caution' },
+						},
 						{ label: 'Prior-art survey', link: '/research-prior-art/' },
 						{ label: 'Whitepaper', link: '/research-whitepaper/' },
 					],
