@@ -132,23 +132,20 @@ Not a production allocator of course, no-op `dealloc` means memory leaks up to t
 ## Workspace layout at the repo root
 
 ```
-bindings/
-├── crates/
-│   ├── zkmcu-verifier/           ← no_std BN254 verify
-│   ├── zkmcu-verifier-bls12/     ← no_std BLS12-381 verify
-│   ├── zkmcu-verifier-stark/     ← no_std winterfell STARK verify
-│   ├── zkmcu-vectors/            ← no_std test-vector loader (all systems)
-│   ├── zkmcu-host-gen/           ← host-only arkworks + winter-prover CLI
-│   ├── zkmcu-bump-alloc/         ← no_std bump allocator with watermark reset
-│   ├── bench-rp2350-m33/         ← Cortex-M33 firmware, BN254
-│   ├── bench-rp2350-m33-bls12/   ← Cortex-M33 firmware, BLS12-381
-│   ├── bench-rp2350-m33-stark/   ← Cortex-M33 firmware, STARK
-│   ├── bench-rp2350-rv32/        ← Hazard3 firmware, BN254
-│   ├── bench-rp2350-rv32-bls12/  ← Hazard3 firmware, BLS12-381
-│   └── bench-rp2350-rv32-stark/  ← Hazard3 firmware, STARK
-├── benchmarks/runs/<date>-<slug>/    ← raw.log + result.toml per run
-├── research/                     ← Typst sources → PDFs (whitepaper, survey, reports)
-├── scripts/gen-semaphore-proof/  ← Bun + TS tool that produces the real Semaphore proof
-├── vendor/semaphore/             ← submodule with the upstream Semaphore source
-└── web/                          ← this site
+crates/
+├── zkmcu-verifier/           ← no_std BN254 verify
+├── zkmcu-verifier-bls12/     ← no_std BLS12-381 verify
+├── zkmcu-verifier-stark/     ← no_std winterfell STARK verify
+├── zkmcu-verifier-plonky3/   ← no_std Plonky3 STARK verify (PQ-Semaphore)
+├── zkmcu-poseidon-audit/     ← in-tree audit of Poseidon2-BabyBear constants
+├── zkmcu-vectors/            ← no_std test-vector loader (all systems)
+├── zkmcu-host-gen/           ← host-only arkworks + winter-prover CLI
+├── zkmcu-bump-alloc/         ← no_std bump allocator with watermark reset
+└── bench-rp2350-{m33,rv32}-* ← per-ISA, per-proof-system firmware crates
+benchmarks/runs/<date>-<slug>/    ← raw.log + result.toml per run
+research/                     ← Typst sources → PDFs (whitepaper, survey, reports)
+scripts/gen-semaphore-proof/  ← Bun + TS tool that produces the real Semaphore proof
+vendor/                       ← submodules (Plonky3, substrate-bn fork, winterfell, semaphore)
 ```
+
+The docs site lives in a sibling repo at `../zkmcu-web/` — separate git history, separate deploy.

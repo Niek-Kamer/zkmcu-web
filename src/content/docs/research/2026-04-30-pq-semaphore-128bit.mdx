@@ -55,7 +55,7 @@ import { fmtMs, fmtMs1 } from '../../../lib/format';
 </HeroStat>
 
 <Aside type="caution" title="Draft, writeup in progress">
-  This page is the technical writeup for the five-phase 128-bit security build of PQ-Semaphore. The benchmark numbers, the security argument, and the firmware crates are real and reproducible from `bindings/reproduce.sh`. The prose framing is being drafted; expect edits before this leaves draft.
+  This page is the technical writeup for the five-phase 128-bit security build of PQ-Semaphore. The benchmark numbers, the security argument, and the firmware crates are real and reproducible from `reproduce.sh`. The prose framing is being drafted; expect edits before this leaves draft.
 </Aside>
 
 ## TL;DR
@@ -81,9 +81,9 @@ Pico 2 W. RP2350. 150 MHz. 524 KB SRAM, 4 MB flash. Two cores on the same die, t
 
 Same die, same clock, same memory map. One Rust source tree compiles to two target triples (`thumbv8m.main-none-eabihf`, `riscv32imac-unknown-none-elf`). The cross-ISA portability story IS part of the methodology contribution. Every phase number lands twice, once per ISA, no asterisks.
 
-All numbers are measured on-device with `DWT::cycle_count()` on M33 and `mcycle` CSR on Hazard3. 20 iterations per bench, range under 0.1% of the median. Single source of truth for every number on this page is the `result.toml` files at `bindings/benchmarks/runs/<date>-<slug>/`. Typst pulls them natively for the paper figures, the docs site here pulls them through a typed loader, both render the same number.
+All numbers are measured on-device with `DWT::cycle_count()` on M33 and `mcycle` CSR on Hazard3. 20 iterations per bench, range under 0.1% of the median. Single source of truth for every number on this page is the `result.toml` files at `benchmarks/runs/<date>-<slug>/`. Typst pulls them natively for the paper figures, the docs site here pulls them through a typed loader, both render the same number.
 
-The methodology bit that earns credibility: **predictions are written before the firmware is flashed and committed alongside the result**. The plan with all five predicted bands is at [`research/notebook/2026-04-29-security-128bit-plan.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-29-security-128bit-plan.md), unchanged from its drafting moment except for the live status board at the bottom. Anyone can `git blame` the predicted bands and see they weren't back-fitted to the result. Four out of five phases landed outside their predicted band. One outright rejected its own hypothesis. We document those rather than hide them. That's the point of running the bench.
+The methodology bit that earns credibility: **predictions are written before the firmware is flashed and committed alongside the result**. The plan with all five predicted bands is at [`research/notebook/2026-04-29-security-128bit-plan.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/notebook/2026-04-29-security-128bit-plan.md), unchanged from its drafting moment except for the live status board at the bottom. Anyone can `git blame` the predicted bands and see they weren't back-fitted to the result. Four out of five phases landed outside their predicted band. One outright rejected its own hypothesis. We document those rather than hide them. That's the point of running the bench.
 
 ## The verifier stack
 
@@ -102,7 +102,7 @@ The verified statement is a depth-10 Semaphore-shaped predicate: "I know an `id`
 
 Both legs commit to the **same trace**, the **same public inputs**, and the **same `(id, scope, signal_hash)` triple**. The dual verifier accepts iff both legs accept. That's the dual-hash composition: cryptanalytic surprise on either hash family does not collapse the verifier.
 
-We picked Plonky3 over Winterfell because Plonky3's audited Poseidon2-`BabyBear` round constants reach the on-device verifier byte-for-byte through `p3-baby-bear`. Winterfell would have required re-auditing because its Poseidon2 isn't packaged that way. The decision spike is at [`research/notebook/2026-04-29-pq-semaphore-verifier-spike.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-29-pq-semaphore-verifier-spike.md).
+We picked Plonky3 over Winterfell because Plonky3's audited Poseidon2-`BabyBear` round constants reach the on-device verifier byte-for-byte through `p3-baby-bear`. Winterfell would have required re-auditing because its Poseidon2 isn't packaged that way. The decision spike is at [`research/notebook/2026-04-29-pq-semaphore-verifier-spike.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/notebook/2026-04-29-pq-semaphore-verifier-spike.md).
 
 ## Headline
 
@@ -206,7 +206,7 @@ The Blake3 leg is **roughly half** the cost of the Poseidon2 leg on Cortex-M33. 
 
 **Cross-ISA gap widens** from 1.19× (Phase B) to 1.27× (Phase E.1). Hazard3 lacks a single-instruction barrel rotate and emulates `x.rotate_right(n)` as `srl ; sll ; or` (3 instructions vs 1 on M33). The Blake3 leg's per-rotate cost compounds across rounds.
 
-**Verdict.** This is the first published dual-hash FRI verification with hash-tower soundness composition that I've found, on any hardware platform, on or off MCU. Prior-art search trail at [`research/notebook/2026-04-30-prior-art-stark-side.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-30-prior-art-stark-side.md). If you know of earlier work, [tell me](/contact/) and I'll update.
+**Verdict.** This is the first published dual-hash FRI verification with hash-tower soundness composition that I've found, on any hardware platform, on or off MCU. Prior-art search trail at [`research/notebook/2026-04-30-prior-art-stark-side.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/notebook/2026-04-30-prior-art-stark-side.md). If you know of earlier work, [tell me](/contact/) and I'll update.
 
 The Phase E.1 number is the lead-architecture claim of the writeup; Phase F (below) closes the last conjectured-bit gap on top of it.
 
@@ -271,7 +271,7 @@ The **128-bit number** is the single number to lead with after Phase F. This is 
 
 **Physical / supply chain.** Pico 2 W has no secure element, no tamper detection. An attacker with ~30 minutes of physical access to a powered device can dump SRAM via SWD or BOOTSEL and recover anything in RAM. **Honest label: convenience-grade self-custody on open hardware, not Ledger-grade tamper resistance.** The dual-hash STARK soundness composition does not change that picture.
 
-Full audit-boundary writeup is at [`research/notebook/2026-04-30-security-claim-table.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/bindings/research/notebook/2026-04-30-security-claim-table.md).
+Full audit-boundary writeup is at [`research/notebook/2026-04-30-security-claim-table.md`](https://github.com/Niek-Kamer/zkmcu/blob/main/research/notebook/2026-04-30-security-claim-table.md).
 
 ## Comparison with related work
 
@@ -294,7 +294,7 @@ A separate, contribution-shaped fact worth its own paragraph: **none of the majo
 
 ```bash
 git clone https://github.com/Niek-Kamer/zkmcu
-cd zkmcu/bindings
+cd zkmcu
 ./reproduce.sh
 ```
 
@@ -302,8 +302,8 @@ cd zkmcu/bindings
 
 The reference `result.toml` files are at:
 
-- [`benchmarks/runs/2026-04-30-m33-pq-semaphore-dual/`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/benchmarks/runs/2026-04-30-m33-pq-semaphore-dual/)
-- [`benchmarks/runs/2026-04-30-rv32-pq-semaphore-dual/`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/benchmarks/runs/2026-04-30-rv32-pq-semaphore-dual/)
+- [`benchmarks/runs/2026-04-30-m33-pq-semaphore-dual/`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs/2026-04-30-m33-pq-semaphore-dual/)
+- [`benchmarks/runs/2026-04-30-rv32-pq-semaphore-dual/`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs/2026-04-30-rv32-pq-semaphore-dual/)
 
 Each holds the median, the 20-iteration range, the cycle counts, the heap and stack peaks, the per-iteration raw log, and a `notes.md` describing the bench shape. 20 iterations, range under 0.1 % of the median, every iteration `ok=true`.
 
@@ -357,10 +357,10 @@ ePrint URL is added once the report is filed; until then please cite by URL.
 ## Acknowledgements
 
 - Plonky3 maintainers (Daniel Lubarov + 0xPolygon team).
-- Audited Poseidon2 round constants from [`crates/zkmcu-poseidon-audit`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/crates/zkmcu-poseidon-audit) (in-tree audit crate).
+- Audited Poseidon2 round constants from [`crates/zkmcu-poseidon-audit`](https://github.com/Niek-Kamer/zkmcu/tree/main/crates/zkmcu-poseidon-audit) (in-tree audit crate).
 - Blake3 team and the BLAKE / BLAKE2 / BLAKE3 lineage.
 - Repo: [github.com/Niek-Kamer/zkmcu](https://github.com/Niek-Kamer/zkmcu) (MIT OR Apache-2.0).
-- Bench artifacts: [`benchmarks/runs/2026-04-{29,30}-*`](https://github.com/Niek-Kamer/zkmcu/tree/main/bindings/benchmarks/runs/) per phase.
+- Bench artifacts: [`benchmarks/runs/2026-04-{29,30}-*`](https://github.com/Niek-Kamer/zkmcu/tree/main/benchmarks/runs/) per phase.
 - ePrint URL added once the report is filed.
 
 ## Where this fits in the project
