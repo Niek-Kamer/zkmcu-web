@@ -55,7 +55,7 @@ The Semaphore verifier call that runs on Ethereum's precompile during every anon
     Today your phone runs the Semaphore verify and your Ledger / Trezor just signs the resulting transaction. A compromised phone can trick the hw wallet into authorising a bogus Semaphore action. zkmcu lets the hw wallet's secure element run the verify itself, so the signing step can refuse if the proof doesn't actually hold up.
   </Card>
   <Card title="Offline Semaphore gates" icon="seti:lock">
-    Turnstile, door lock, voting booth that accepts a Semaphore-style "I'm in this group without revealing wich member" proof without any server call. Hardware + zkmcu firmware + a Semaphore VK baked in at provisioning. That's the whole stack.
+    Turnstile, door lock, voting booth that accepts a Semaphore-style "I'm in this group without revealing which member" proof without any server call. Hardware + zkmcu firmware + a Semaphore VK baked in at provisioning. That's the whole stack.
   </Card>
   <Card title="Peer-to-peer private vouchers" icon="approve-check-circle">
     Person A hands Person B a ZK-proven payment note or access credential. Person B's device verifies locally. No on-chain step needed for the verification side of the exchange (settlement can happen separately).

@@ -90,7 +90,7 @@ Rough cost decomposition of the 75 ms verify (TlsfHeap, Quadratic):
 | Goldilocks $F_(p^2)$ mul / fold | ~2.8M | ~19 | 25 % |
 | Merkle auth-path + parse + scratch | ~2.9M | ~19 | 25 % |
 
-Hash work is the dominant cost. Blake3 falls back to pure-Rust on both embedded targets (no SIMD available on the M33 or Hazard3), wich keeps numbers reproducible but leaves ~2× headroom if someone writes a hand-tuned Thumb-2 blake3 inner loop.
+Hash work is the dominant cost. Blake3 falls back to pure-Rust on both embedded targets (no SIMD available on the M33 or Hazard3), which keeps numbers reproducible but leaves ~2× headroom if someone writes a hand-tuned Thumb-2 blake3 inner loop.
 
 ## Per-op breakdown, BN254
 

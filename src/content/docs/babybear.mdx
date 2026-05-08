@@ -17,9 +17,9 @@ import { fmtMs1 } from '../../lib/format';
   { text: 'Goldilocks still wins on latency', variant: 'caution' },
 ]} />
 
-Phase 3.3 was supposed to be the BabyBear win. Small field fits a `u32`, right? 32-bit MCU has a native `u32` multiply, Goldilocks has to emulate `u64` arithmetic everywhere, ofcourse BabyBear beats it. That was the pitch going in.
+Phase 3.3 was supposed to be the BabyBear win. Small field fits a `u32`, right? 32-bit MCU has a native `u32` multiply, Goldilocks has to emulate `u64` arithmetic everywhere, of course BabyBear beats it. That was the pitch going in.
 
-Didn't work out like that. BabyBear × Quartic is **+69.7 % slower than Goldilocks × Quadratic on Cortex-M33**, and +19.5 % slower on Hazard3 RV32 even after hand-written Karatsuba optimisations. The 31-bit-fits-register advantage gets eaten by the Quartic extension overhead wich you can't escape at 95-bit conjectured security.
+Didn't work out like that. BabyBear × Quartic is **+69.7 % slower than Goldilocks × Quadratic on Cortex-M33**, and +19.5 % slower on Hazard3 RV32 even after hand-written Karatsuba optimisations. The 31-bit-fits-register advantage gets eaten by the Quartic extension overhead which you can't escape at 95-bit conjectured security.
 
 But the run wasn't a write-off. Two findings came out that I think are more interesting than the "BabyBear wins" story would've been:
 
@@ -35,11 +35,11 @@ But the run wasn't a write-off. Two findings came out that I think are more inte
 | **BabyBear × Quartic Karatsuba, TLSF** | **124.22 ms** | **129.05 ms** | **1.039×** |
 | Δ vs Goldilocks | **+69.7 %** | **+19.5 %** | |
 
-Same silicon, same Blake3 hash, same TLSF allocator, same AIR (Fib-1024), same proof options. The only variables are the base field, the extension degree, and wich extension-mul algorithm we used.
+Same silicon, same Blake3 hash, same TLSF allocator, same AIR (Fib-1024), same proof options. The only variables are the base field, the extension degree, and which extension-mul algorithm we used.
 
 ## Why we had to fork winterfell
 
-BabyBear × Quadratic is only 62 bits of extension, wich caps conjectured security around 50-bit. To hit 95-bit with BabyBear you need Quartic at minimum, 124 bits. Winterfell 0.13.1 ships `FieldExtension::{None, Quadratic, Cubic}`, no Quartic, no `QuartExtension<B>` wrapper. Dead end unless we fork.
+BabyBear × Quadratic is only 62 bits of extension, which caps conjectured security around 50-bit. To hit 95-bit with BabyBear you need Quartic at minimum, 124 bits. Winterfell 0.13.1 ships `FieldExtension::{None, Quadratic, Cubic}`, no Quartic, no `QuartExtension<B>` wrapper. Dead end unless we fork.
 
 So we forked. Niek-Kamer/winterfell at upstream v0.13.1, vendored in `vendor/winterfell` as a submodule, path-patched every `winter-*` crate via `[patch.crates-io]`. The change is architecturally additive, existing Quadratic and Cubic behaviour is untouched and all 280+ of winterfell's own tests still pass:
 
@@ -65,7 +65,7 @@ The base-field advantage of BabyBear is real but bounded. On Cortex-M33 a BabyBe
 
 Per-op speed 3× in our favor. Extension-level work 3-4× against us. Net is worse, not better.
 
-There's a general rule hiding in here: at a fixed STARK security target, you don't get to pick your field independent of the extension degree you need. A 31-bit field is only a win at security levels where Quadratic suffices, wich for BabyBear caps around 50-bit. For 95-bit production-grade security you pay the extension cost, and the trade goes the other way. This is non-obvious from the MCU-friendly-small-field papers, wich tend to assume extension cost is a wash.
+There's a general rule hiding in here: at a fixed STARK security target, you don't get to pick your field independent of the extension degree you need. A 31-bit field is only a win at security levels where Quadratic suffices, which for BabyBear caps around 50-bit. For 95-bit production-grade security you pay the extension cost, and the trade goes the other way. This is non-obvious from the MCU-friendly-small-field papers, which tend to assume extension cost is a wash.
 
 ## Why Karatsuba helped Hazard3 but not M33
 
@@ -159,7 +159,7 @@ Phase 3.3 was about the verifier. Phase 5 (added later) benchmarks the on-device
 
 +10 % prove overhead for 3× more security bits, and the heap actually shrinks by 52 KB because BabyBear elements are 4 bytes not 8. Compare that to the verifier where BabyBear was +66 % worse.
 
-The difference is bottleneck. The verifier is almost purely Blake3 hash work (Merkle path checks). Field arithmetic is a small fraction. So BabyBear's field advantage barely shows up. The prover spends significant time on the LDE and constraint evaluation, wich is field-arithmetic-heavy. Half the memory bandwidth and faster field multiplies actually matter there.
+The difference is bottleneck. The verifier is almost purely Blake3 hash work (Merkle path checks). Field arithmetic is a small fraction. So BabyBear's field advantage barely shows up. The prover spends significant time on the LDE and constraint evaluation, which is field-arithmetic-heavy. Half the memory bandwidth and faster field multiplies actually matter there.
 
 The cross-ISA prove gap with the prover: 1.55× (Phase 4, Goldilocks) → 1.42× (Phase 5, BabyBear). The hypothesis was it would collapse to 1.07×. It didn't — see [STARK prover](/stark-prover/) for the full explanation, but the short answer is Blake3 is the ISA gap floor at 1.39× and field arithmetic adds only 0.03× on top.
 
@@ -171,4 +171,4 @@ Three open tracks for phase 3.4 or later, in rough order of payoff:
 - **Bigger AIRs** ($N = 2^{16}$, $N = 2^{18}$). Extension-field work scales linearly with trace length; hashing is sub-linear. Possible BabyBear's relative cost improves at larger AIRs where extension work is a smaller fraction of total verify time.
 - **Hand-asm UMULL for BabyBear `mont_reduce`** on M33. Same playbook as phase-2 Groth16 went 988 ms → 551 ms. But Karatsuba already showed extension-mul isn't the M33 bottleneck, so expected payoff is small.
 
-The cross-ISA and variance results hold regardless of wich thread gets picked up.
+The cross-ISA and variance results hold regardless of which thread gets picked up.

@@ -14,7 +14,7 @@ import { fmtMs1 } from '../../lib/format';
   { text: 'side-channel adjacent', variant: 'tip' },
 ]} />
 
-The STARK verify path allocates ~400 `Vec`s internally. Under a general-purpose allocator those allocations produce enough timing jitter to turn an otherwise-deterministic crypto routine into one that's 10× noisier than wich the silicon can actually resolve. This page is how I tracked that down and what it means if you're writing side-channel-sensitive firmware.
+The STARK verify path allocates ~400 `Vec`s internally. Under a general-purpose allocator those allocations produce enough timing jitter to turn an otherwise-deterministic crypto routine into one that's 10× noisier than which the silicon can actually resolve. This page is how I tracked that down and what it means if you're writing side-channel-sensitive firmware.
 
 ## The anomaly
 
@@ -57,7 +57,7 @@ Result:
 
 Modest improvement on M33 (~25 % of the jitter was the clone), zero improvement on RV32, and on RV32 variance actually *went up*. Turns out the clone had been slightly stabilising the loop. So yeah, hypothesis mostly disconfirmed.
 
-Takeaway: allocator jitter inside winterfell's verify path itself, the ~400 internal `Vec` allocations, is wich dominates. Not the single outer clone.
+Takeaway: allocator jitter inside winterfell's verify path itself, the ~400 internal `Vec` allocations, is which dominates. Not the single outer clone.
 
 ### Phase 3.2.y, BumpAlloc with watermark reset
 
@@ -83,7 +83,7 @@ Result:
 
 Variance dropped to silicon baseline. And as a side effect, *median verify actually got faster*. The LlffHeap free-list walk had been paying 1.7 ms on M33 and **10.2 ms on Hazard3** as pure overhead. Bump alloc's O(1) path removes it entirely.
 
-Catch ofcourse: bump alloc with no-op `dealloc` is memory-hungry. Heap peak jumps from 93.5 KB (LlffHeap) to 314 KB (bump). That's *above the 128 KB hardware-wallet tier*. So bump alloc proves the crypto can be timing-deterministic, but it's not a production allocator.
+Catch of course: bump alloc with no-op `dealloc` is memory-hungry. Heap peak jumps from 93.5 KB (LlffHeap) to 314 KB (bump). That's *above the 128 KB hardware-wallet tier*. So bump alloc proves the crypto can be timing-deterministic, but it's not a production allocator.
 
 ### Phase 3.2.z, TlsfHeap for production
 
@@ -105,7 +105,7 @@ TLSF's std-dev matches BumpAlloc's. Heap peak matches LlffHeap's (byte-identical
 
 ## Why this matters for hardware wallets
 
-Timing-deterministic verify is side-channel resistance without writing constant-time code by hand. The pairing-based verifiers already give us ~0.05 % variance naturally because `substrate-bn` and `bls12_381` don't allocate much during verify. STARK was the outlier, winterfell's design allocates heavily, wich turned into observable timing jitter.
+Timing-deterministic verify is side-channel resistance without writing constant-time code by hand. The pairing-based verifiers already give us ~0.05 % variance naturally because `substrate-bn` and `bls12_381` don't allocate much during verify. STARK was the outlier, winterfell's design allocates heavily, which turned into observable timing jitter.
 
 <Aside type="note" title="What this isn't">
   Neither `TlsfHeap` nor `BumpAlloc` makes zkmcu "formally constant-time". A proper CT proof would need a secret-dependent-branch audit across the whole verifier stack, including winterfell's internal code paths. What we're measuring here is *timing jitter per verify call*, i.e. how consistently the same proof verifies to the same number of cycles. That's the property that actually matters for remote-timing attacks against a device running in a controlled environment.
@@ -137,9 +137,9 @@ The allocator choice had a second, fairly unexpected consequence: *it changed th
 
 BumpAlloc (branch-free CAS-bump) gives us the "pure crypto" cross-ISA ratio: 1.21×. That's the honest number for comparing Cortex-M33 vs Hazard3 on STARK verify workload, stripped of allocator overhead.
 
-LlffHeap adds free-list-walk cost, wich Hazard3 pays more for than M33 (weaker branch prediction on pointer chase), widening the gap to 1.33×.
+LlffHeap adds free-list-walk cost, which Hazard3 pays more for than M33 (weaker branch prediction on pointer chase), widening the gap to 1.33×.
 
-TlsfHeap adds bitmap-walk cost, wich Hazard3 *also* pays more for but differently (many small conditional branches around the two-level bitmap), widening the gap further to 1.51×.
+TlsfHeap adds bitmap-walk cost, which Hazard3 *also* pays more for but differently (many small conditional branches around the two-level bitmap), widening the gap further to 1.51×.
 
 **Implication for cross-ISA crypto benchmarks:** the allocator you pick can swing the "M33 vs Hazard3" answer by 30 %. Any published microarchitecture comparison of `no_std` crypto workloads that uses a stock general-purpose allocator is partially measuring the allocator, not the workload. Future zkmcu reports will always disclose allocator choice up front, and the allocator-matrix report linked below is the reference for what a full disclosure should look like.
 

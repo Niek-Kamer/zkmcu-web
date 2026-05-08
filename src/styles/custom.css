@@ -31,7 +31,7 @@
 :root {
 	/* Bumped from the Starlight default 45rem because a few of our pages
 	 * (cross-ISA benchmarks, allocator matrix) lean on wide numeric tables
-	 * wich get squeezed at 45rem on 1920px+ viewports. 52rem is the sweet
+	 * which get squeezed at 45rem on 1920px+ viewports. 52rem is the sweet
 	 * spot, tables breathe and prose isn't a wall of text. */
 	--sl-content-width: 52rem;
 
@@ -267,7 +267,7 @@ a.card:hover,
 	 * cells share the full width instead of shrinking to content.
 	 * border-collapse keeps cell borders clean. clip-path with rounded
 	 * inset clips cell backgrounds (hover state too) inside the outer
-	 * border, wich overflow:hidden doesn't reliably do on <table>.
+	 * border, which overflow:hidden doesn't reliably do on <table>.
 	 * tabular-nums makes digits align vertically so numeric columns scan. */
 	display: table;
 	table-layout: auto;
@@ -342,7 +342,7 @@ a.card:hover,
 }
 
 /* Opt-in compact wrapper for the edge-case 7-col allocator matrix on
- * /benchmarks/ wich has more columns than the reading column holds
+ * /benchmarks/ which has more columns than the reading column holds
  * comfortably. Tightens padding and drops type so the content fits
  * without popping out. Horizontal scroll is the fallback if a viewport
  * is narrow enough that even the compact form overflows. Use by wrapping

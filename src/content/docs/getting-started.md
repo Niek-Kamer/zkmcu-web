@@ -13,7 +13,7 @@ Yeah so zkmcu is a family of `no_std` Rust libraries. Three verifier crates, one
 | **BLS12-381 Groth16** | `zkmcu-verifier-bls12` | EIP-2537 | Ethereum sync-committee, Zcash, Filecoin, Aleo | 512 B |
 | **Winterfell STARK** | `zkmcu-verifier-stark` | winterfell 0.13 | Fast verify, post-quantum, larger proofs OK | 25-31 KB |
 
-Not sure wich? Quick picker:
+Not sure which? Quick picker:
 
 - If the proof lives in an Ethereum mainnet transaction or a Semaphore-style application → **BN254 Groth16**
 - If it's for Ethereum sync-committee, Zcash, Filecoin PoSt / PoRep, or Aleo → **BLS12-381 Groth16**
@@ -29,7 +29,7 @@ zkmcu-verifier-bls12 = "0.1"       # BLS12-381 Groth16
 zkmcu-verifier-stark = "0.1"       # Winterfell STARK
 ```
 
-On embedded you also need a global allocator. The right pick depends on wich proof system you use:
+On embedded you also need a global allocator. The right pick depends on which proof system you use:
 
 ```toml
 # Default: TlsfHeap is O(1) deterministic and fits the 128 KB tier.
@@ -105,11 +105,11 @@ Writes `crates/zkmcu-vectors/data/<name>/{vk,proof,public}.bin` (STARK has no `v
 - `semaphore-depth-10`, **real** Semaphore Groth16 proof, 4 public inputs, BN254 only. See [Semaphore page](/semaphore/) for the generator pipeline
 - `stark-fib-1024`, Fibonacci STARK at `FieldExtension::Quadratic`, 95-bit conjectured security
 
-For production use, generate proofs with wichever prover your application already uses. Any Ethereum-compatible BN254 Groth16 prover outputs EIP-197 bytes, any BLS12-381 prover outputs EIP-2537, any winterfell-based prover outputs bytes that `zkmcu-verifier-stark` reads directly (as long as your AIR definition matches on both sides).
+For production use, generate proofs with whichever prover your application already uses. Any Ethereum-compatible BN254 Groth16 prover outputs EIP-197 bytes, any BLS12-381 prover outputs EIP-2537, any winterfell-based prover outputs bytes that `zkmcu-verifier-stark` reads directly (as long as your AIR definition matches on both sides).
 
 ## On an embedded target
 
-Six reference firmware crates ship in the repo. Pick wichever matches your proof system + ISA combo:
+Six reference firmware crates ship in the repo. Pick whichever matches your proof system + ISA combo:
 
 | Proof system | Cortex-M33 | Hazard3 RV32 |
 |---|---|---|

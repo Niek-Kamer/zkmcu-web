@@ -25,10 +25,10 @@ Groth16 proofs are tiny (256-512 bytes) but expensive to verify (1-2 seconds on 
     Bandwidth-bound transport. LoRa, NFC, low-bandwidth BLE. 256 B on the wire fits a single radio frame, 30 KB doesn't. Pay the verify-time cost on the receiver.
   </Card>
   <Card title="When STARK wins" icon="rocket">
-    Verify-time-bound receiver. Per-packet verification, hot loops, latency budgets under 100 ms. An MCU that needs to verify a proof 10 times per second can't afford Groth16's per-verify cost ofcourse.
+    Verify-time-bound receiver. Per-packet verification, hot loops, latency budgets under 100 ms. An MCU that needs to verify a proof 10 times per second can't afford Groth16's per-verify cost of course.
   </Card>
   <Card title="When both win" icon="approve-check-circle">
-    Hardware wallets. USB or BLE bandwidth is plenty (kB/s, not B/s), verify latency barely matters at human-action speed (one per transaction confirmation). Ship both and let the prover pick wichever fits.
+    Hardware wallets. USB or BLE bandwidth is plenty (kB/s, not B/s), verify latency barely matters at human-action speed (one per transaction confirmation). Ship both and let the prover pick whichever fits.
   </Card>
   <Card title="Post-quantum angle" icon="puzzle">
     STARK soundness doesn't depend on elliptic-curve discrete log or pairing hardness. Blake3 hash-based construction is conjectured post-quantum secure. Groth16 is not.
@@ -37,7 +37,7 @@ Groth16 proofs are tiny (256-512 bytes) but expensive to verify (1-2 seconds on 
 
 ## What "production security" means here
 
-The headline 74.7 ms number is measured at the configuration wich is actually defensible in production, not a demo config:
+The headline 74.7 ms number is measured at the configuration which is actually defensible in production, not a demo config:
 
 - **Fibonacci AIR** with `N = 1024` trace steps (small, representative)
 - **`FieldExtension::Quadratic`** over Goldilocks → **95-bit conjectured STARK security**
@@ -45,7 +45,7 @@ The headline 74.7 ms number is measured at the configuration wich is actually de
 - **Blake3-256** hash, **binary Merkle tree** vector commitment
 - **TlsfHeap** (O(1) two-level segregated fit) as the global allocator
 
-The 95-bit figure matches winterfell's own Fibonacci reference configuration. A lower bound like 63-bit (what `FieldExtension::None` gives) verifies in 43.8 ms but isn't production security, that config exists in the repo as `phase 3.1` just for comparison. Phase 3.3 tested an alternative path to 95-bit via BabyBear × Quartic, see [BabyBear × Quartic](/babybear/). It didn't beat Goldilocks on latency, but it collapsed the cross-ISA gap from 1.51× to 1.04×, wich is a surprise on its own.
+The 95-bit figure matches winterfell's own Fibonacci reference configuration. A lower bound like 63-bit (what `FieldExtension::None` gives) verifies in 43.8 ms but isn't production security, that config exists in the repo as `phase 3.1` just for comparison. Phase 3.3 tested an alternative path to 95-bit via BabyBear × Quartic, see [BabyBear × Quartic](/babybear/). It didn't beat Goldilocks on latency, but it collapsed the cross-ISA gap from 1.51× to 1.04×, which is a surprise on its own.
 
 ## The numbers
 
@@ -67,7 +67,7 @@ Allocator: `embedded-alloc::TlsfHeap`. Clone-hoisted pattern (proof clone outsid
 
 ## The 128 KB SRAM tier
 
-Before phase-3 measurements, the worry was wether STARK verify could even fit alongside BN254 Groth16 (97 KB total) and BLS12-381 Groth16 (99 KB total) under the 128 KB hardware-wallet SRAM tier. Turns out it does:
+Before phase-3 measurements, the worry was whether STARK verify could even fit alongside BN254 Groth16 (97 KB total) and BLS12-381 Groth16 (99 KB total) under the 128 KB hardware-wallet SRAM tier. Turns out it does:
 
 | Verifier family | Total RAM on M33 | Fits 128 KB? |
 |---|---:|:---:|
@@ -81,7 +81,7 @@ All three verifier families now sit on the same silicon tier. nRF52832, STM32F40
 
 The STARK verify path allocates ~400 `Vec`s internally for FRI state, auth-path parsing, and composition polynomial scratch. With the stock `LlffHeap` allocator, the free-list state evolves iteration to iteration and timing variance lands around 0.25 % on M33. For side-channel-sensitive deployments (hardware wallets), that's noisy enough to be a problem.
 
-Swapping to `TlsfHeap` (O(1) two-level segregated fit) brings variance down to **0.08 %**, the silicon noise floor. Verify path becomes timing-deterministic to the level of cache and USB-peripheral noise, wich is basically as good as it gets without writing constant-time code by hand.
+Swapping to `TlsfHeap` (O(1) two-level segregated fit) brings variance down to **0.08 %**, the silicon noise floor. Verify path becomes timing-deterministic to the level of cache and USB-peripheral noise, which is basically as good as it gets without writing constant-time code by hand.
 
 Full methodology: [Deterministic timing](/determinism/).
 

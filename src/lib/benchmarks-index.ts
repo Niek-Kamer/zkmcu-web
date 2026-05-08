@@ -12,7 +12,7 @@ import { us } from './benchmarks';
 export const BENCHMARKS = {
 	// STARK headline (TlsfHeap, 95-bit Quadratic), the production pick.
 	// Updated 2026-04-28 audit: repoint at bench-core rebaseline runs
-	// wich are the same circuit and config measured under the unified
+	// which are the same circuit and config measured under the unified
 	// firmware harness; supersedes the older `*-stark-fib-1024-q-tlsf/`
 	// pointers (74.65 / 112.40 ms) with 73.20 / 107.96 ms.
 	stark_m33_tlsf: {

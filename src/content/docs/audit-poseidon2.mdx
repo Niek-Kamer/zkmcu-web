@@ -39,7 +39,7 @@ crates/zkmcu-poseidon-audit/
 └── perm.rs              reference Poseidon2 perm in pure u64
 ```
 
-Plus `tests/perm_diff.rs` wich runs both Plonky3's perm and ours on the same constants and asserts byte-identical output.
+Plus `tests/perm_diff.rs` which runs both Plonky3's perm and ours on the same constants and asserts byte-identical output.
 
 40 tests, runs in ~60ms release. All green.
 
@@ -67,9 +67,9 @@ So Plonky3's `BabyBear` round counts ARE the cryptanalytic-bound minima. Verifie
 
 ## Finding 2: M_4 IS MDS over BabyBear despite p < 2^31
 
-Paper page 12 says M_4 is MDS for `p > 2^31`. `BabyBear`'s prime is `15·2^27 + 1 = 2_013_265_921` wich is LESS than `2^31`. So the paper's claim does not directly cover us.
+Paper page 12 says M_4 is MDS for `p > 2^31`. `BabyBear`'s prime is `15·2^27 + 1 = 2_013_265_921` which is LESS than `2^31`. So the paper's claim does not directly cover us.
 
-Plonky3 ofcourse used M_4 anyway. I needed to know wich:
+Plonky3 of course used M_4 anyway. I needed to know which:
 
 - a) they verified separately
 - b) they missed it

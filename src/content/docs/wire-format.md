@@ -23,7 +23,7 @@ Any Ethereum-compatible Groth16 prover emits bytes one of the two Groth16 verifi
 | Proof total | 256 B | 512 B |
 | Identity point | all-zero bytes | all-zero bytes |
 
-The **Fp2 byte order flip** is wich bites everyone. Easily the most common source of integration bugs when porting between BN254 and BLS12-381. If a proof verifies through arkworks but fails through zkmcu, the `G2` bytes are the first place to look.
+The **Fp2 byte order flip** is which bites everyone. Easily the most common source of integration bugs when porting between BN254 and BLS12-381. If a proof verifies through arkworks but fails through zkmcu, the `G2` bytes are the first place to look.
 
 ## BN254 / EIP-197
 
@@ -34,7 +34,7 @@ The **Fp2 byte order flip** is wich bites everyone. Easily the most common sourc
 | `Fq` | 32 bytes | Big-endian unsigned integer, strictly less than the BN254 base modulus `p` |
 | `Fr` | 32 bytes | Big-endian unsigned integer, strictly less than the BN254 scalar modulus `r` |
 
-zkmcu enforces strict canonical encoding, values ≥ the respective modulus are rejected with `Error::InvalidFq` / `Error::InvalidFr`. This is stricter than `substrate-bn`'s default, wich silently reduces `Fr` values mod `r`. See [security](/security/) for why this matters for nullifier-style applications.
+zkmcu enforces strict canonical encoding, values ≥ the respective modulus are rejected with `Error::InvalidFq` / `Error::InvalidFr`. This is stricter than `substrate-bn`'s default, which silently reduces `Fr` values mod `r`. See [security](/security/) for why this matters for nullifier-style applications.
 
 ### Points
 
@@ -78,7 +78,7 @@ count(u32 LE) ‖ input[count](Fr)              ← public inputs
 
 The 16-byte padding comes from EIP-2537's alignment choice: BLS12-381's 381-bit base field fits in 48 bytes, but Ethereum's precompile ABI uses 32-byte words, so every `Fp` value is left-padded with 16 zeros to land on a 64-byte boundary. zkmcu's parsers **require that padding to be exactly zero**, any non-zero byte in the pad region is rejected as `Error::InvalidFp`.
 
-This pad check closes a malleability gap. Without it, an attacker could flip bits in the pad region and the proof would still decode to the same curve point, wich is no good.
+This pad check closes a malleability gap. Without it, an attacker could flip bits in the pad region and the proof would still decode to the same curve point, which is no good.
 
 ### Points
 

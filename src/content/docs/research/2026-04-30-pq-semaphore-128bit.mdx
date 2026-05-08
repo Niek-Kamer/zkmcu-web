@@ -64,9 +64,9 @@ Replace the post-quantum-broken Groth16/BN254 verifier in Semaphore-shaped ident
 
 ## Why this exists
 
-Semaphore proofs ship on Groth16 over BN254. Pairings. Pairings are dead the day a useful quantum computer comes online, ofcourse, and the 110-bit classical security floor on BN254 has been chipped at by STNFS attacks for a decade. "Semaphore but post-quantum" is a known gap. Existing candidates (zkDilithium, Polygon zkEVM recursion, RISC Zero, Succinct SP1) all run their verifiers on server-class hardware: AVX2/AVX-512 x86 boxes costing $1000+. None publish embedded verify numbers. SP1 explicitly excludes verify time from their benchmark methodology.
+Semaphore proofs ship on Groth16 over BN254. Pairings. Pairings are dead the day a useful quantum computer comes online, of course, and the 110-bit classical security floor on BN254 has been chipped at by STNFS attacks for a decade. "Semaphore but post-quantum" is a known gap. Existing candidates (zkDilithium, Polygon zkEVM recursion, RISC Zero, Succinct SP1) all run their verifiers on server-class hardware: AVX2/AVX-512 x86 boxes costing $1000+. None publish embedded verify numbers. SP1 explicitly excludes verify time from their benchmark methodology.
 
-But the kind of hardware a Semaphore-shaped identity proof actually wants to live on is a phone, a turnstile, a wallet, a sensor. Tiny silicon, no SIMD, kilobytes of RAM, no host or radio link assumed. The lead use case is local set-membership without trusting anything outside the box: your great-grandkids in 2080 should still be able to verify this proof was constructed by a member of the eligible set, without knowing wich member, and without trusting that BN254 hasn't fallen by then.
+But the kind of hardware a Semaphore-shaped identity proof actually wants to live on is a phone, a turnstile, a wallet, a sensor. Tiny silicon, no SIMD, kilobytes of RAM, no host or radio link assumed. The lead use case is local set-membership without trusting anything outside the box: your great-grandkids in 2080 should still be able to verify this proof was constructed by a member of the eligible set, without knowing which member, and without trusting that BN254 hasn't fallen by then.
 
 That gap is what this work measures. Not whether STARK verification is fast on a microcontroller (it isn't), but whether it can be made to fit inside the power, RAM, and silicon budget of a hardware token at all, with documented soundness, and without an audit-shaped hole in the chain of trust.
 
@@ -89,7 +89,7 @@ The methodology bit that earns credibility: **predictions are written before the
 
 The verified statement is a depth-10 Semaphore-shaped predicate: "I know an `id` whose commitment is a leaf in the Merkle tree rooted at `merkle_root`, the nullifier `nul = H(id, scope_hash)` matches, and the signal `signal_hash` is bound to the scope". Same shape as v1 Semaphore, post-quantum-grade math.
 
-**Custom AIR.** 16 trace rows, ~332 columns of `BabyBear`. Embeds the audited Plonky3 Poseidon2-`BabyBear`-16 columns verbatim (we copied `eval_full_round`, `eval_partial_round`, `eval_sbox` byte-for-byte from Plonky3 because they're `pub(crate)` and not callable externally; the audit covers their constraint shape, wich is preserved as long as the bytes match). The cross-row witness-column constraints (id continuity, scope continuity, sibling/prev_digest binding, conditional Merkle swap) are new logic. They are hand-checked but NOT externally audited. That boundary matters and is repeated below.
+**Custom AIR.** 16 trace rows, ~332 columns of `BabyBear`. Embeds the audited Plonky3 Poseidon2-`BabyBear`-16 columns verbatim (we copied `eval_full_round`, `eval_partial_round`, `eval_sbox` byte-for-byte from Plonky3 because they're `pub(crate)` and not callable externally; the audit covers their constraint shape, which is preserved as long as the bytes match). The cross-row witness-column constraints (id continuity, scope continuity, sibling/prev_digest binding, conditional Merkle swap) are new logic. They are hand-checked but NOT externally audited. That boundary matters and is repeated below.
 
 **Public inputs.** 24 `BabyBear` elements = 96 wire bytes. `merkle_root || nullifier || signal_hash || scope_hash`, each 6 elements wide. `DIGEST_WIDTH = 6` is the Phase B parameter; the writeup explains why this number changed below.
 
@@ -147,7 +147,7 @@ The meat. Each phase had one knob, one prediction, one bench. Here's the per-pha
 
 **Measurement.** M33 +1.40%, RV32 +1.09%. **Far below band.**
 
-**Why the model was wrong.** Merkle openings live as AIR witness columns, not as external FRI openings. Going from `d=4` to `d=6` widens the trace by ~11 columns (~3.4%), it doesn't multiply the Poseidon2 hash work. The cost model that fits the data is **per-trace-column LDE cost**, not per-input-byte hash absorption. This is the kind of thing on-device measurement teaches you wich whiteboard analysis doesn't.
+**Why the model was wrong.** Merkle openings live as AIR witness columns, not as external FRI openings. Going from `d=4` to `d=6` widens the trace by ~11 columns (~3.4%), it doesn't multiply the Poseidon2 hash work. The cost model that fits the data is **per-trace-column LDE cost**, not per-input-byte hash absorption. This is the kind of thing on-device measurement teaches you which whiteboard analysis doesn't.
 
 **Verdict.** New combined floor: 127 conjectured FRI + 186-bit hash space (or 93-bit generic-collision, see security section below). The hash is no longer the binding constraint.
 
@@ -166,7 +166,7 @@ The meat. Each phase had one knob, one prediction, one bench. Here's the per-pha
 
 **Why final-layer is so much faster than predicted.** The upstream Plonky3 FRI verifier checks per-round `commit-phase PoW` *before* the per-query Merkle loop. Tail corruption short-circuits after one round of grinding-prefix verification, not after all 64 queries. We didn't model that level of per-round structure in the prediction.
 
-**Verdict.** No soundness change (we don't loosen any check, we just reorder). What we get is an **availability bound**: worst-case attacker DoS efficiency is capped at ~9× honest verify time. For a token that has to keep responding to honest proofs under adversarial flooding, that's a real win. Not a constant-time path, ofcourse, and Phase C is intentionally data-dependent. The constant-time leg is a separate workstream.
+**Verdict.** No soundness change (we don't loosen any check, we just reorder). What we get is an **availability bound**: worst-case attacker DoS efficiency is capped at ~9× honest verify time. For a token that has to keep responding to honest proofs under adversarial flooding, that's a real win. Not a constant-time path, of course, and Phase C is intentionally data-dependent. The constant-time leg is a separate workstream.
 
 ### Phase D: Goldilocks × Quadratic alt-config (hypothesis rejected)
 
@@ -202,7 +202,7 @@ This is the kind of result you only get from running the bench. Whiteboard analy
 | Poseidon2 leg | ~1066 ms | ~1270 ms |
 | Blake3 leg    | ~545 ms  | ~772 ms  |
 
-The Blake3 leg is **roughly half** the cost of the Poseidon2 leg on Cortex-M33. That inverts the usual "Poseidon2 is the embedded-friendly hash" intuition, wich is correct on the prover side and wrong on the verifier side. Cortex-M33 has a 1-cycle barrel rotate, so Blake3's ARX inner loop (8 rotates × 7 rounds × per-Merkle-node work) unrolls cleanly. Poseidon2-`BabyBear` has to compute a width-16 algebraic permutation per Merkle node and per FRI absorption step; that's strictly more cycles per byte committed.
+The Blake3 leg is **roughly half** the cost of the Poseidon2 leg on Cortex-M33. That inverts the usual "Poseidon2 is the embedded-friendly hash" intuition, which is correct on the prover side and wrong on the verifier side. Cortex-M33 has a 1-cycle barrel rotate, so Blake3's ARX inner loop (8 rotates × 7 rounds × per-Merkle-node work) unrolls cleanly. Poseidon2-`BabyBear` has to compute a width-16 algebraic permutation per Merkle node and per FRI absorption step; that's strictly more cycles per byte committed.
 
 **Cross-ISA gap widens** from 1.19× (Phase B) to 1.27× (Phase E.1). Hazard3 lacks a single-instruction barrel rotate and emulates `x.rotate_right(n)` as `srl ; sll ; or` (3 instructions vs 1 on M33). The Blake3 leg's per-rotate cost compounds across rounds.
 
@@ -311,7 +311,7 @@ The Pi 5 is the flashing host in our setup (the Pico is on USB to `pid-admin@10.
 
 ## What this is, and what it isn't
 
-This is a **verifier-side** result. The Plonky3 PQ-Semaphore prover is `std`-only and runs on a laptop. Measured median host prove time on a modern x86 dev machine is **~132 ms** (Poseidon2 leg ~105 ms + Blake3 leg ~27 ms, single-threaded, n=6 runs after warming the build cache). Memory footprint during proving is GB-class, wich is why the prover does not fit on the Pico 2 W and is out of scope for this work. Realistic deployment shape: phone or laptop generates the proof, transmits via USB / QR / NFC to the embedded verifier, embedded verifier validates in 1.6 s.
+This is a **verifier-side** result. The Plonky3 PQ-Semaphore prover is `std`-only and runs on a laptop. Measured median host prove time on a modern x86 dev machine is **~132 ms** (Poseidon2 leg ~105 ms + Blake3 leg ~27 ms, single-threaded, n=6 runs after warming the build cache). Memory footprint during proving is GB-class, which is why the prover does not fit on the Pico 2 W and is out of scope for this work. Realistic deployment shape: phone or laptop generates the proof, transmits via USB / QR / NFC to the embedded verifier, embedded verifier validates in 1.6 s.
 
 Host verify on the same laptop runs in **~6.18 ms** median; the M33 ÷ laptop verify ratio is ~261×, in the expected range for a 150 MHz single-issue MCU vs a multi-GHz wide-issue laptop CPU. The cross-CPU per-leg ratio is also worth noting: on the laptop the Poseidon2 leg costs ~3.2× the Blake3 leg in verify (4.72 ms vs 1.46 ms host). On the Pico that ratio is ~2:1. Different ratio on different CPUs, **same direction**: Poseidon2 is more expensive than Blake3 in the verifier role on every CPU we tested.
 
@@ -330,7 +330,7 @@ This is **not**:
 
 ## What's next
 
-**Phase E.2: hash-tower commitment.** A single proof over a hash tower (Poseidon2 commits to leaves wich Blake3 commits to). Smaller proof size at higher implementation cost; deferred until a user surfaces who needs the proof-byte win over the dual-stack simplicity.
+**Phase E.2: hash-tower commitment.** A single proof over a hash tower (Poseidon2 commits to leaves which Blake3 commits to). Smaller proof size at higher implementation cost; deferred until a user surfaces who needs the proof-byte win over the dual-stack simplicity.
 
 **Threshold ML-DSA when it matures.** Drop into the Phase E.1 verifier as an access-control gate, replacing the current Schnorr signing shape if anyone wants hardware-anchored signing on top of the membership proof. Separate writeup.
 

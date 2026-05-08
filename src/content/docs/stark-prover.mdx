@@ -34,7 +34,7 @@ The threshold circuit is the first non-trivial predicate we've run. The claim: `
 | heap after | 10 bytes |
 
 <Aside type="caution" title="Two security parameters, not one">
-  The 123-bit number is **STARK soundness**, set by the FRI query count. The circuit also asserts `Poseidon(value, nonce) = commitment` for binding, wich gives **~64-bit Grobner-basis security** at the current `t=2, α=7, 24-full-round` config. Overall security is `min(STARK, Poseidon) = 64 bit`, not 123. The 24-round count was picked deliberately for this range-proof use case (forgery requires guessing a valid `(value, nonce)` pair, not inverting the hash), but it's still a separate parameter and pretending it isn't would be lying. A real 128-bit Poseidon-BabyBear with audited parameters lands as part of the upcoming PQ-Semaphore audit milestone.
+  The 123-bit number is **STARK soundness**, set by the FRI query count. The circuit also asserts `Poseidon(value, nonce) = commitment` for binding, which gives **~64-bit Grobner-basis security** at the current `t=2, α=7, 24-full-round` config. Overall security is `min(STARK, Poseidon) = 64 bit`, not 123. The 24-round count was picked deliberately for this range-proof use case (forgery requires guessing a valid `(value, nonce)` pair, not inverting the hash), but it's still a separate parameter and pretending it isn't would be lying. A real 128-bit Poseidon-BabyBear with audited parameters lands as part of the upcoming PQ-Semaphore audit milestone.
 </Aside>
 
 64 FRI queries at blowup=4. Bumping from 11 to 64 queries added 1.2% prove overhead and 14 KB heap while jumping from 21-bit to 123-bit security. Prove time is basically query-invariant because the work is in LDE + FRI folding, not query opening.
@@ -61,7 +61,7 @@ Yeah so phases 1-3 were all about verification. Take a proof someone else genera
 
 ## Phase 4: the feasibility run
 
-Phase 4 is deliberately weak on security. Goldilocks with no extension gives ~32-bit conjectured security, wich is not production-grade, but it answers the "does it even fit" question first. Then Phase 5 tightens it.
+Phase 4 is deliberately weak on security. Goldilocks with no extension gives ~32-bit conjectured security, which is not production-grade, but it answers the "does it even fit" question first. Then Phase 5 tightens it.
 
 | | Cortex-M33 | Hazard3 RV32 |
 |-|---:|---:|
@@ -77,7 +77,7 @@ Each firmware proves and then immediately self-verifies on the same device. If v
 Heap peak of 299 KB means running with a 384 KB arena. The remaining ~128 KB headroom covers `.bss`, stack, and USB. N=512 was tried immediately after. It OOM'd before the first prove call returned.
 
 <Aside type="note" title="Why N=256 is the ceiling">
-N=512 at blowup=4 needs ~600 KB heap for the LDE matrix and FRI oracle data. The RP2350 has 512 KB total SRAM. Even if you stripped everything else out, that's just not enough. N=256 is the practical limit on this chip at these parameters, regardless of wich field you pick.
+N=512 at blowup=4 needs ~600 KB heap for the LDE matrix and FRI oracle data. The RP2350 has 512 KB total SRAM. Even if you stripped everything else out, that's just not enough. N=256 is the practical limit on this chip at these parameters, regardless of which field you pick.
 </Aside>
 
 ## Phase 5: BabyBear + Quartic, production security
@@ -97,7 +97,7 @@ Switches base field and extension: Goldilocks 64-bit → BabyBear 31-bit, `Field
 Verify costs more (+49 %) because the Quartic extension forces a bigger composition polynomial (4 columns instead of 1). But 29 ms is still fine.
 
 <Aside type="tip" title="Why the prover tells a different BabyBear story than the verifier">
-Phase 3.3 showed BabyBear × Quartic was +66 % slower than Goldilocks × Quadratic for the verifier. The prover shows only +10 %. Different bottleneck. The verifier is almost purely Blake3 hash work, field arithmetic is a tiny fraction of it. The prover spends a lot of time on the LDE and constraint evaluation, wich is field-heavy. BabyBear's smaller elements cut LDE memory bandwidth in half and reduce the NTT field multiply count. That's why the prover benefits and the verifier barely noticed.
+Phase 3.3 showed BabyBear × Quartic was +66 % slower than Goldilocks × Quadratic for the verifier. The prover shows only +10 %. Different bottleneck. The verifier is almost purely Blake3 hash work, field arithmetic is a tiny fraction of it. The prover spends a lot of time on the LDE and constraint evaluation, which is field-heavy. BabyBear's smaller elements cut LDE memory bandwidth in half and reduce the NTT field multiply count. That's why the prover benefits and the verifier barely noticed.
 </Aside>
 
 ## The cross-ISA gap hypothesis that didn't hold

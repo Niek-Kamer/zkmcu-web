@@ -3,7 +3,7 @@ title: zkmcu
 description: "no_std Rust ZK verifiers for microcontrollers. Current focus: post-quantum Semaphore-style identity proofs with dual-hash STARK composition on a $7 RP2350, plus the existing BN254 Groth16, BLS12-381 Groth16, and winterfell STARK family in under 128 KB SRAM."
 hero:
   tagline: |
-    no_std Rust ZK verifiers for microcontrollers. Current focus: a post-quantum Semaphore-style identity proof, verified on a $7 Pico 2 W in 1.6 s under dual-hash (Poseidon2 + Blake3) STARK composition. The earlier BN254 / BLS12 / winterfell-STARK family still ships under 128 KB SRAM. Ofcourse nobody had published this before, so I had to find out myself.
+    no_std Rust ZK verifiers for microcontrollers. Current focus: a post-quantum Semaphore-style identity proof, verified on a $7 Pico 2 W in 1.6 s under dual-hash (Poseidon2 + Blake3) STARK composition. The earlier BN254 / BLS12 / winterfell-STARK family still ships under 128 KB SRAM. Of course nobody had published this before, so I had to find out myself.
   actions:
     - text: Read the writeup
       link: /research/2026-04-30-pq-semaphore-128bit/
@@ -33,7 +33,7 @@ import { fmtMs } from '../../lib/format';
 
 ## In five lines
 
-Yeah so the API is pretty much three crates, one function each. Pull in wichever one you need, hand it bytes, check the `bool`.
+Yeah so the API is pretty much three crates, one function each. Pull in whichever one you need, hand it bytes, check the `bool`.
 
 ```rust
 use zkmcu_verifier::verify_bytes;                   // BN254 / EIP-197
@@ -75,7 +75,7 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
 <Aside type="note" title="Why this even exists">
   Every SNARK and STARK verifier out there ships for phones or servers. Hardware wallets, offline credential readers, IoT tags, none of them verify ZK proofs on-device. Not because it was impossible, just because nobody had shipped an open-source `no_std` verifier to try it with.
 
-  So I figured someone had to actually benchmark wether it fits, and here we are. All three dominant proof-system families, one 128 KB SRAM budget: Ethereum's BN254 precompile format, BLS12-381 for EIP-2537, and winterfell's Goldilocks-based STARK.
+  So I figured someone had to actually benchmark whether it fits, and here we are. All three dominant proof-system families, one 128 KB SRAM budget: Ethereum's BN254 precompile format, BLS12-381 for EIP-2537, and winterfell's Goldilocks-based STARK.
 </Aside>
 
 ## What it's for
@@ -85,7 +85,7 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
     ZK verify on the secure element itself, so a compromised phone can't feed the wallet a bogus Semaphore or Tornado action and get rubber-stamped. Under TlsfHeap the timing is deterministic to silicon noise floor, so side-channel resistance is mostly free.
   </Card>
   <Card title="Offline credentials" icon="seti:lock">
-    Transit turnstiles, festivals, borders. Verify a privacy-preserving credential with no network, no server round-trip. Groth16 and STARK both work, pick wichever your issuer uses.
+    Transit turnstiles, festivals, borders. Verify a privacy-preserving credential with no network, no server round-trip. Groth16 and STARK both work, pick whichever your issuer uses.
   </Card>
   <Card title="IoT attestation" icon="linux">
     Small devices checking each other's SNARK-attested provenance without a cloud relay in the middle. At 75 ms per STARK, you can actually verify per-packet without falling over.
@@ -105,7 +105,7 @@ All three: `no_std`, pure Rust, one function call. Every number on this page com
     BN254 Groth16 uses 97 KB RAM, BLS12-381 uses 116 KB, STARK uses 100 KB. All measured on the same RP2350 Cortex-M33 at 150 MHz. Any hardware-wallet-class chip (nRF52832, STM32F405, Ledger ST33, Infineon SLE78) runs any of the three.
   </Card>
   <Card title="Deterministic timing" icon="approve-check-circle">
-    With the production TlsfHeap allocator, STARK verify variance hits **0.08 %**, wich is the silicon noise floor. That's timing-side-channel resistance without writing constant-time code by hand, wich is nice because constant-time crypto is a pain in the ass to review. [How](/determinism/)
+    With the production TlsfHeap allocator, STARK verify variance hits **0.08 %**, which is the silicon noise floor. That's timing-side-channel resistance without writing constant-time code by hand, which is nice because constant-time crypto is a pain in the ass to review. [How](/determinism/)
   </Card>
   <Card title="Two ISAs, one source" icon="rocket">
     ARM Cortex-M33 and RISC-V Hazard3 running the exact same crypto source, same chip. Only the linker script and the cycle-counter read differ. Measured cross-ISA ratios: 1.21× for STARK, 1.33× for BN254 Groth16, 2.56× for BLS12-381. M33 wins every time, but the gap depends wildly on workload.

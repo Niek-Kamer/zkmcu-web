@@ -15,8 +15,8 @@ zkmcu defends against all three. Same threat model across the three verifier cra
 
 Proof-system-specific notes:
 
-- **BN254**: enforces strict `Fr < r` canonical encoding, wich is stricter than `substrate-bn`'s default (that one silently reduces mod `r`). Matters a lot for nullifier-style applications where non-canonical encoding is a malleability vector.
-- **BLS12-381**: enforces that the 16-byte leading-zero padding on every `Fp` element is actually zero, not "ignored". Any non-zero bits in the padding get rejected as `Error::InvalidFp`. Without that check, an attacker could flip padding bits and the proof would still decode to the same curve point, wich is a trivial malleability vector. Closed at parse time.
+- **BN254**: enforces strict `Fr < r` canonical encoding, which is stricter than `substrate-bn`'s default (that one silently reduces mod `r`). Matters a lot for nullifier-style applications where non-canonical encoding is a malleability vector.
+- **BLS12-381**: enforces that the 16-byte leading-zero padding on every `Fp` element is actually zero, not "ignored". Any non-zero bits in the padding get rejected as `Error::InvalidFp`. Without that check, an attacker could flip padding bits and the proof would still decode to the same curve point, which is a trivial malleability vector. Closed at parse time.
 - **STARK**: enforces `MinConjecturedSecurity(95)` at the verifier level, so a prover submitting a proof with weaker options gets rejected even if the underlying crypto verifies. Prevents downgrade attacks where an attacker submits a 63-bit-secure proof in place of a 95-bit one.
 
 ## What's tested
@@ -27,7 +27,7 @@ Proof-system-specific notes:
 
 - Empty, truncated, and oversized inputs to every parser
 - Field elements ≥ their respective moduli
-- Points not on the curve (e.g. `G1::(1, 1)`, wich fails `y² = x³ + 3`)
+- Points not on the curve (e.g. `G1::(1, 1)`, which fails `y² = x³ + 3`)
 - Adversarial `num_ic` / `count` fields including `u32::MAX`
 - All-zero inputs (identity points, must parse, must not spuriously verify)
 - Cross-vector mismatches (square proof against squares-5 VK, etc.)
@@ -83,7 +83,7 @@ Remote-timing-oracle resistance is a property zkmcu measures, not one it tries t
 | **STARK (TlsfHeap)** | **0.08 %** | Deterministic allocator brings variance to silicon floor |
 | STARK (LlffHeap) | ~0.25 % | Allocator noise obscures crypto timing |
 
-Under the recommended `TlsfHeap` allocator, all three verifiers hit sub-0.1 % iteration-to-iteration variance. That's below the noise floor of any non-lab-grade timing oracle (USB / BLE / network transports have millisecond-or-worse resolution). Ofcourse this is not the same as formal constant-time execution, it's a claim about what an attacker can actually observe in a realistic deployment: indistinguishable from silicon noise. Two different properties, be honest with yourself about wich one your threat model actually needs.
+Under the recommended `TlsfHeap` allocator, all three verifiers hit sub-0.1 % iteration-to-iteration variance. That's below the noise floor of any non-lab-grade timing oracle (USB / BLE / network transports have millisecond-or-worse resolution). Of course this is not the same as formal constant-time execution, it's a claim about what an attacker can actually observe in a realistic deployment: indistinguishable from silicon noise. Two different properties, be honest with yourself about which one your threat model actually needs.
 
 If your application has secret data flowing into the verify code path (not the usual zkmcu use case), the picture changes. Both `substrate-bn` and `bls12_381` have scalar-dependent branches that a lab-grade attacker with full-cycle-precision measurement could exploit. zkmcu's threat model does not cover that.
 
@@ -95,7 +95,7 @@ Things that are NOT validated yet, documented openly instead of quietly skipped:
 - **Power analysis / EM leakage.** Unmeasured. Requires a ChipWhisperer-class lab setup. Treated as a separate follow-up project.
 - **G2 subgroup membership (Groth16).** Wether `substrate-bn` and `bls12_381` correctly reject G2 twist points that are not in the prime-order subgroup is trusted from the upstream libraries. I haven't directly tested it. Historically a bug class in BN254 precompile implementations, so it's on the audit list.
 - **STARK security conjecture.** 95-bit "conjectured" security relies on the list-decoding bound assumed by most deployed STARK systems. Provable security is lower by a factor of 2 queries. Acceptable in practice, but worth documenting as "conjectured" not "proven".
-- **Trusted VK assumption (Groth16).** An adversary who controls the VK can in principle engineer the pairing check to accept a forged proof. zkmcu assumes the VK is trusted, baked into firmware at provisioning time, or loaded from a trusted channel. If your use case loads the VK dynamically from an untrusted source, that's a separate threat model wich zkmcu doesn't defend against.
+- **Trusted VK assumption (Groth16).** An adversary who controls the VK can in principle engineer the pairing check to accept a forged proof. zkmcu assumes the VK is trusted, baked into firmware at provisioning time, or loaded from a trusted channel. If your use case loads the VK dynamically from an untrusted source, that's a separate threat model which zkmcu doesn't defend against.
 - **Trusted AIR assumption (STARK).** Analogous to the Groth16 VK assumption, the AIR definition compiled into the verifier binary is the integrity anchor. An adversary who changes the AIR source before compilation can build a verifier that accepts proofs it shouldn't. STARK upgrades therefore require signed firmware updates, not runtime configuration.
 
 ## Reporting a vulnerability
