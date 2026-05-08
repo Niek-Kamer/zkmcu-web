@@ -104,12 +104,16 @@ export const BENCHMARKS = {
 	},
 
 	// BN254 Groth16 on a real Semaphore v4 depth-10 proof (4 big-scalar public inputs)
+	// Updated 2026-05-08: repoint at bench-core unified-harness runs which
+	// use the post-UMAAL firmware (M33 1,176 → 761 ms). RV32 ticks slightly
+	// up (1,565 → 1,634 ms) because bench-core's TrackingLlff adds two
+	// atomic ops per alloc — observability overhead, not a real regression.
 	bn254_m33_semaphore: {
-		slug: '2026-04-22-m33-semaphore-depth10',
+		slug: '2026-04-24-bench-core-m33-bn254-groth16',
 		bench: 'groth16_verify_semaphore',
 	},
 	bn254_rv32_semaphore: {
-		slug: '2026-04-22-rv32-semaphore-depth10',
+		slug: '2026-04-24-bench-core-rv32-bn254-groth16',
 		bench: 'groth16_verify_semaphore',
 	},
 
